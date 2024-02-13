@@ -8,6 +8,12 @@ pub struct WorkerResponse {
 }
 
 #[derive(Debug)]
+pub enum WorkerMessage {
+    MasterRequest(MasterMessage),
+    StateUpdate(StateUpdate),
+}
+
+#[derive(Debug)]
 pub struct StateUpdate {
     seq_number: i32,
     message: i32,
@@ -17,22 +23,37 @@ pub struct StateUpdate {
 pub struct Worker {
     ctx: ComponentContext<Self>,
     state: (i32, i32),
-    proposed_sequence_number: i32,
+    proposed_sequence_number: Option<i32>,
     message_port: ProvidedPort<MessagePort>,
 }
 ignore_lifecycle!(Worker);
 
 impl Worker {
+    pub fn new() -> Self {
+        Self {
+            ctx: ComponentContext::uninitialised(),
+            state: (0, 0),
+            proposed_sequence_number: None,
+            message_port: ProvidedPort::uninitialised(),
+        }
+    }
     fn update_state(&mut self, seq_number: i32, message: i32) {
         todo!();
     }
 }
 
 impl Actor for Worker {
-    type Message = StateUpdate;
+    type Message = WorkerMessage;
 
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
-        self.update_state(msg.seq_number, msg.message);
+        match msg {
+            WorkerMessage::MasterRequest(master_request) => {
+                todo!();
+            }
+            WorkerMessage::StateUpdate(state_update) => {
+                self.update_state(state_update.seq_number, state_update.message);
+            }
+        }
 
         Handled::Ok
     }
@@ -42,20 +63,21 @@ impl Actor for Worker {
 }
 
 impl Provide<MessagePort> for Worker {
-    fn handle(&mut self, event: MasterRequest) -> Handled {
+    fn handle(&mut self, event: MasterMessage) -> Handled {
         match event {
-            MasterRequest::Rfp => {
-                //generate and return proposal response to Rfp Req
+            MasterMessage::Rfp => {
+                //generate (assign to self.proposed_sequence_number) and return proposal response to Rfp Req
                 todo!();
             }
-            MasterRequest::SequenceNumber {
+            MasterMessage::SequenceNumber {
                 seq_number,
                 message,
             } => {
-                self.actor_ref().tell(StateUpdate {
-                    seq_number,
-                    message,
-                });
+                self.actor_ref()
+                    .tell(WorkerMessage::StateUpdate(StateUpdate {
+                        seq_number,
+                        message,
+                    }));
             }
         };
         Handled::Ok
