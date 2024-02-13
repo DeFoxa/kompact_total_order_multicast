@@ -2,13 +2,19 @@ use crate::master_types::*;
 use kompact::prelude::*;
 
 #[derive(Debug, Clone)]
-pub struct WorkerResponse {
+pub enum WorkerResponse {
+    RfpResponse,
+    StateUpdateConfirmed,
+}
+
+#[derive(Debug, Clone)]
+pub struct RfpResponse {
     proposed_sequence_number: Option<i32>,
     msg: Option<i32>,
 }
 
 #[derive(Debug)]
-pub enum WorkerMessage {
+pub enum WorkerInternalMessage {
     MasterRequest(MasterMessage),
     StateUpdate(StateUpdate),
 }
@@ -43,14 +49,14 @@ impl Worker {
 }
 
 impl Actor for Worker {
-    type Message = WorkerMessage;
+    type Message = WorkerInternalMessage;
 
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
         match msg {
-            WorkerMessage::MasterRequest(master_request) => {
+            WorkerInternalMessage::MasterRequest(master_request) => {
                 todo!();
             }
-            WorkerMessage::StateUpdate(state_update) => {
+            WorkerInternalMessage::StateUpdate(state_update) => {
                 self.update_state(state_update.seq_number, state_update.message);
             }
         }
@@ -74,7 +80,7 @@ impl Provide<MessagePort> for Worker {
                 message,
             } => {
                 self.actor_ref()
-                    .tell(WorkerMessage::StateUpdate(StateUpdate {
+                    .tell(WorkerInternalMessage::StateUpdate(StateUpdate {
                         seq_number,
                         message,
                     }));

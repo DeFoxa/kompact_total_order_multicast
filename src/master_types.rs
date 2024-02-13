@@ -5,22 +5,29 @@ use kompact::prelude::*;
 pub struct Master {
     ctx: ComponentContext<Self>,
     message_port: RequiredPort<MessagePort>,
-    worker_count: i32,
-    worker_refs: Vec<ActorRefStrong<WorkerMessage>>,
+    worker_count: usize,
+    // worker_response: Vec<WorkerResponse>,
+    outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
+    worker_refs: Vec<ActorRefStrong<WorkerInternalMessage>>,
 }
 
 impl Master {
-    fn new(worker_count: i32) -> Self {
+    fn new(num_workers: usize) -> Self {
         Self {
             ctx: ComponentContext::uninitialised(),
             message_port: RequiredPort::uninitialised(),
-            worker_count,
-            worker_refs: Vec::new(),
+            worker_count: num_workers,
+            // worker_response: Vec::new(),
+            outstanding_proposals: None,
+            worker_refs: Vec::with_capacity(num_workers),
         }
+    }
+    pub fn request_for_proposal(&self) {
+        let msg = MasterMessage::MasterRequest::Rfp;
     }
     pub fn broadcast_message_to_workers(&self, message: MasterMessage) {
         for worker in &self.worker_refs {
-            worker.tell(WorkerMessage::MasterRequest(message.clone()));
+            worker.tell(MasterMessage::MasterRequest(message.clone()));
         }
     }
 }
