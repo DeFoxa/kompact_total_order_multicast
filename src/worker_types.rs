@@ -2,6 +2,29 @@ use crate::master_types::*;
 use kompact::prelude::*;
 
 #[derive(Debug, Clone)]
+pub enum WorkerMessages {
+    External(External),
+    InternalStateUpdate(StateUpdate),
+}
+impl From<MasterMessage> for WorkerMessages {
+    fn from(item: MasterMessage) -> Self {
+        match item {
+            MasterMessage::Rfp => WorkerMessages::External(External::MasterMessage(item)),
+            MasterMessage::AcceptedProposalBroadcast {
+                seq_number,
+                message,
+            } => WorkerMessages::External(External::MasterMessage(item)),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub enum External {
+    WorkerRfpResponse,
+    WorkerStateUpdateConfirmation,
+    MasterMessage(MasterMessage),
+}
+
+#[derive(Debug, Clone)]
 pub enum WorkerResponse {
     RfpResponse,
     StateUpdateConfirmed,
@@ -12,14 +35,15 @@ pub struct RfpResponse {
     proposed_sequence_number: Option<i32>,
     msg: Option<i32>,
 }
+//
+// #[derive(Debug)]
+// pub enum WorkerInternalMessage {
+//     MasterRequest(MasterMessage),
+//     InternalStateUpdate(StateUpdate),
+//     // StateUpdate(InternalStateUpdate),
+// }
 
-#[derive(Debug)]
-pub enum WorkerInternalMessage {
-    MasterRequest(MasterMessage),
-    StateUpdate(StateUpdate),
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StateUpdate {
     seq_number: i32,
     message: i32,
@@ -49,14 +73,14 @@ impl Worker {
 }
 
 impl Actor for Worker {
-    type Message = WorkerInternalMessage;
+    type Message = WorkerMessages;
 
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
         match msg {
-            WorkerInternalMessage::MasterRequest(master_request) => {
+            WorkerMessages::External(master_request) => {
                 todo!();
             }
-            WorkerInternalMessage::StateUpdate(state_update) => {
+            WorkerMessages::InternalStateUpdate(state_update) => {
                 self.update_state(state_update.seq_number, state_update.message);
             }
         }
@@ -75,12 +99,12 @@ impl Provide<MessagePort> for Worker {
                 //generate (assign to self.proposed_sequence_number) and return proposal response to Rfp Req
                 todo!();
             }
-            MasterMessage::SequenceNumber {
+            MasterMessage::AcceptedProposalBroadcast {
                 seq_number,
                 message,
             } => {
                 self.actor_ref()
-                    .tell(WorkerInternalMessage::StateUpdate(StateUpdate {
+                    .tell(WorkerMessages::InternalStateUpdate(StateUpdate {
                         seq_number,
                         message,
                     }));

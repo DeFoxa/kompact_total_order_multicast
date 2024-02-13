@@ -8,7 +8,7 @@ pub struct Master {
     worker_count: usize,
     // worker_response: Vec<WorkerResponse>,
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
-    worker_refs: Vec<ActorRefStrong<WorkerInternalMessage>>,
+    worker_refs: Vec<ActorRefStrong<WorkerMessages>>,
 }
 
 impl Master {
@@ -23,11 +23,11 @@ impl Master {
         }
     }
     pub fn request_for_proposal(&self) {
-        let msg = MasterMessage::MasterRequest::Rfp;
+        let msg = MasterMessage::Rfp;
     }
-    pub fn broadcast_message_to_workers(&self, message: MasterMessage) {
+    pub fn broadcast_accepted_proposal(&self, message: MasterMessage) {
         for worker in &self.worker_refs {
-            worker.tell(MasterMessage::MasterRequest(message.clone()));
+            worker.tell(message.clone());
         }
     }
 }
@@ -63,7 +63,7 @@ impl Actor for Master {
 #[derive(Debug, Clone)]
 pub enum MasterMessage {
     Rfp,
-    SequenceNumber { seq_number: i32, message: i32 },
+    AcceptedProposalBroadcast { seq_number: i32, message: i32 },
 }
 
 pub struct MessagePort;
