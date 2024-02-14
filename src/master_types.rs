@@ -14,7 +14,6 @@ pub struct Master {
     worker_response: Vec<Option<External>>,
     worker_refs: Vec<ActorRefStrong<WorkerMessages>>,
 }
-type ReqMessage = Ask<MasterMessage, WorkerResponse>;
 
 impl Master {
     fn new(num_workers: usize) -> Self {
@@ -34,23 +33,6 @@ impl Master {
             self.message_port.trigger(MasterMessage::Rfp);
         }
     }
-    // fn request_for_proposal(&mut self) {
-    //     self.spawn_local(move |mut async_self| async move {
-    //         let futures: Vec<_> = async_self
-    //             .worker_refs
-    //             .into_iter()
-    //             .map(|worker_refs| worker_refs.request(MasterMessage::Rfp))
-    //             .collect();
-    //         if async_self.worker_response.len() == async_self.worker_count {
-    //             let response: Vec<WorkerResponse> = futures::future::join_all(futures).await;
-    //         }
-    //         Handled::Ok
-    //         // async_self.worker_response = futures::future::join_all(futures).await
-    //     });
-    //     for worker in &self.worker_refs {
-    //         worker.tell(MasterMessage::Rfp);
-    //     }
-    // }
     async fn process_response(&mut self) {
         todo!();
     }
