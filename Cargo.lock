@@ -755,6 +755,7 @@ dependencies = [
 name = "isis_total_order_multicast"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "kompact",
 ]
 

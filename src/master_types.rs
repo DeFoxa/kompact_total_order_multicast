@@ -1,4 +1,5 @@
 use crate::worker_types::*;
+use futures::future::join;
 use kompact::prelude::*;
 use std::sync::Arc;
 
@@ -13,6 +14,7 @@ pub struct Master {
     worker_response: Vec<Option<External>>,
     worker_refs: Vec<ActorRefStrong<WorkerMessages>>,
 }
+type ReqMessage = Ask<MasterMessage, WorkerResponse>;
 
 impl Master {
     fn new(num_workers: usize) -> Self {
@@ -27,14 +29,33 @@ impl Master {
             worker_refs: Vec::with_capacity(num_workers),
         }
     }
-    fn request_for_proposal(&mut self, req: MasterMessage) {
-        let msg = MasterMessage::Rfp;
-        if self.outstanding_proposals.is_some() {
-            let ask = self.outstanding_proposals.take().expect("ask");
-            let rfp = ask.request();
-            //TODO: handle sending ask and response
+    fn request_for_proposal(&mut self) {
+        for _ in &self.worker_refs {
+            self.message_port.trigger(MasterMessage::Rfp);
         }
-        for worker in &self.worker_refs {}
+    }
+    // fn request_for_proposal(&mut self) {
+    //     self.spawn_local(move |mut async_self| async move {
+    //         let futures: Vec<_> = async_self
+    //             .worker_refs
+    //             .into_iter()
+    //             .map(|worker_refs| worker_refs.request(MasterMessage::Rfp))
+    //             .collect();
+    //         if async_self.worker_response.len() == async_self.worker_count {
+    //             let response: Vec<WorkerResponse> = futures::future::join_all(futures).await;
+    //         }
+    //         Handled::Ok
+    //         // async_self.worker_response = futures::future::join_all(futures).await
+    //     });
+    //     for worker in &self.worker_refs {
+    //         worker.tell(MasterMessage::Rfp);
+    //     }
+    // }
+    async fn process_response(&mut self) {
+        todo!();
+    }
+    fn accept_proposal(&self) {
+        todo!();
     }
     fn broadcast_accepted_proposal(&self, message: MasterMessage) {
         for worker in &self.worker_refs {
@@ -52,7 +73,7 @@ impl ComponentLifecycle for Master {
             self.workers.push(worker);
             self.worker_refs.push(worker_ref);
         }
-        self.request_for_proposal(MasterMessage::Rfp);
+        self.request_for_proposal();
         Handled::Ok
     }
     fn on_stop(&mut self) -> Handled {
@@ -94,6 +115,18 @@ impl Port for MessagePort {
 
 impl Require<MessagePort> for Master {
     fn handle(&mut self, event: WorkerResponse) -> Handled {
+        match event {
+            WorkerResponse::RfpResponse => {
+                if self.outstanding_proposals.is_some() {
+                    // let ask = self.outstanding_requests.take().expect("ask");
+                    // let response
+                }
+            }
+            WorkerResponse::StateUpdateConfirmed => {
+                todo!(); //acknowledge response
+            }
+        }
+
         todo!();
     }
 }
