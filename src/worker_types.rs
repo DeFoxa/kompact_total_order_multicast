@@ -6,6 +6,8 @@ pub enum WorkerMessages {
     External(External),
     InternalStateUpdate(StateUpdate),
 }
+//NOTE/TODO: not sure I like all these nested enums for future match statements, will probably
+//change later
 impl From<MasterMessage> for WorkerMessages {
     fn from(item: MasterMessage) -> Self {
         match item {
@@ -17,6 +19,7 @@ impl From<MasterMessage> for WorkerMessages {
         }
     }
 }
+
 #[derive(Debug, Clone)]
 pub enum External {
     WorkerRfpResponse,
@@ -26,8 +29,11 @@ pub enum External {
 
 #[derive(Debug, Clone)]
 pub enum WorkerResponse {
-    RfpResponse,
-    StateUpdateConfirmed,
+    RfpResponse(RfpResponse),
+    StateUpdateConfirmed(StateUpdate),
+    // NOTE: acknowledgement mechanism as response to AcceptedProposalBroadcast from master
+    // based on logic, master can then shutdown workers or send next rfp iteration when
+    // received confirmations = num_workers
 }
 
 #[derive(Debug, Clone)]
@@ -35,13 +41,6 @@ pub struct RfpResponse {
     proposed_sequence_number: Option<i32>,
     msg: Option<i32>,
 }
-//
-// #[derive(Debug)]
-// pub enum WorkerInternalMessage {
-//     MasterRequest(MasterMessage),
-//     InternalStateUpdate(StateUpdate),
-//     // StateUpdate(InternalStateUpdate),
-// }
 
 #[derive(Debug, Clone)]
 pub struct StateUpdate {
@@ -78,6 +77,21 @@ impl Actor for Worker {
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
         match msg {
             WorkerMessages::External(master_request) => {
+                /* External::WorkerStateUpdateConfirmation */
+                match master_request {
+                    External::MasterMessage(_) => todo!(),
+                    External::WorkerRfpResponse => todo!(),
+                    External::WorkerStateUpdateConfirmation => todo!(),
+                }
+                //     info!(self.ctx.log(), "received state update {:?}", master_request);
+                // } else {
+                //     println!("RFP sent through channel, not port");
+                //     debug!(self.ctx.log(), "RFP sent through channel, not port")
+                // }
+
+                //match master request to rfp or accepted proposal
+                //run logic relative to match
+                //trigger port
                 todo!();
             }
             WorkerMessages::InternalStateUpdate(state_update) => {

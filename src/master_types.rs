@@ -11,7 +11,7 @@ pub struct Master {
     workers: Vec<Arc<Component<Worker>>>,
     // worker_response: Vec<WorkerResponse>,
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
-    worker_response: Vec<Option<External>>,
+    worker_response: Vec<Option<WorkerResponse>>,
     worker_refs: Vec<ActorRefStrong<WorkerMessages>>,
 }
 
@@ -36,7 +36,7 @@ impl Master {
     async fn process_response(&mut self) {
         todo!();
     }
-    fn accept_proposal(&self) {
+    fn process_proposals(&self) {
         todo!();
     }
     fn broadcast_accepted_proposal(&self, message: MasterMessage) {
@@ -98,13 +98,17 @@ impl Port for MessagePort {
 impl Require<MessagePort> for Master {
     fn handle(&mut self, event: WorkerResponse) -> Handled {
         match event {
-            WorkerResponse::RfpResponse => {
-                if self.outstanding_proposals.is_some() {
-                    // let ask = self.outstanding_requests.take().expect("ask");
-                    // let response
+            WorkerResponse::RfpResponse(event) => {
+                println!("event {:?}", event);
+                self.worker_response
+                    .push(Some(WorkerResponse::RfpResponse(event)));
+                if self.worker_response.len() == self.worker_count {
+                    info!(self.ctx.log(), "proposals received from all workers");
+                    println!("proposals received from all workers");
+                    self.process_proposals();
                 }
             }
-            WorkerResponse::StateUpdateConfirmed => {
+            WorkerResponse::StateUpdateConfirmed(event) => {
                 todo!(); //acknowledge response
             }
         }
