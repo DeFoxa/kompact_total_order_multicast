@@ -1,7 +1,10 @@
 use crate::worker_types::*;
+use anyhow::Result;
 use futures::future::join;
 use kompact::prelude::*;
+use rand::Rng;
 use std::sync::Arc;
+use std::{thread, time};
 
 #[derive(ComponentDefinition)]
 pub struct Master {
@@ -29,8 +32,17 @@ impl Master {
         }
     }
     fn request_for_proposal(&mut self) {
-        for _ in &self.worker_refs {
-            self.message_port.trigger(MasterMessage::Rfp);
+        let mut rng = rand::thread_rng();
+        let jitter: u32 = rng.gen_range(25..100);
+        let delay_duration = std::time::Duration::from_millis((jitter).into());
+        let workers = self.worker_refs.clone();
+
+        for _ in workers.iter() {
+            self.schedule_once(delay_duration, move |new_self, _context| {
+                new_self.message_port.trigger(MasterMessage::Rfp);
+                new_self.ctx().system().shutdown_async();
+                Handled::Ok
+            });
         }
     }
     async fn process_response(&mut self) {

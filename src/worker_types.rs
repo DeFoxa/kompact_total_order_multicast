@@ -69,6 +69,22 @@ impl Worker {
     fn update_state(&mut self, seq_number: i32, message: i32) {
         todo!();
     }
+    fn handle_external(&mut self, msg: External) {
+        match msg {
+            External::MasterMessage(m) => self.handle_master_message(m),
+            External::WorkerRfpResponse => todo!(),
+            External::WorkerStateUpdateConfirmation => todo!(),
+        }
+    }
+    fn handle_master_message(&mut self, msg: MasterMessage) {
+        match msg {
+            MasterMessage::Rfp => todo!(),
+            MasterMessage::AcceptedProposalBroadcast {
+                seq_number,
+                message,
+            } => todo!(),
+        }
+    }
 }
 
 impl Actor for Worker {
@@ -76,24 +92,7 @@ impl Actor for Worker {
 
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
         match msg {
-            WorkerMessages::External(master_request) => {
-                /* External::WorkerStateUpdateConfirmation */
-                match master_request {
-                    External::MasterMessage(_) => todo!(),
-                    External::WorkerRfpResponse => todo!(),
-                    External::WorkerStateUpdateConfirmation => todo!(),
-                }
-                //     info!(self.ctx.log(), "received state update {:?}", master_request);
-                // } else {
-                //     println!("RFP sent through channel, not port");
-                //     debug!(self.ctx.log(), "RFP sent through channel, not port")
-                // }
-
-                //match master request to rfp or accepted proposal
-                //run logic relative to match
-                //trigger port
-                todo!();
-            }
+            WorkerMessages::External(master_request) => self.handle_external(master_request),
             WorkerMessages::InternalStateUpdate(state_update) => {
                 self.update_state(state_update.seq_number, state_update.message);
             }
@@ -108,22 +107,23 @@ impl Actor for Worker {
 
 impl Provide<MessagePort> for Worker {
     fn handle(&mut self, event: MasterMessage) -> Handled {
-        match event {
-            MasterMessage::Rfp => {
-                //generate (assign to self.proposed_sequence_number) and return proposal response to Rfp Req
-                todo!();
-            }
-            MasterMessage::AcceptedProposalBroadcast {
-                seq_number,
-                message,
-            } => {
-                self.actor_ref()
-                    .tell(WorkerMessages::InternalStateUpdate(StateUpdate {
-                        seq_number,
-                        message,
-                    }));
-            }
-        };
+        self.handle_master_message(event);
+        // match event {
+        //     MasterMessage::Rfp => {
+        //         //generate (assign to self.proposed_sequence_number) and return proposal response to Rfp Req
+        //         todo!();
+        //     }
+        //     MasterMessage::AcceptedProposalBroadcast {
+        //         seq_number,
+        //         message,
+        //     } => {
+        //         self.actor_ref()
+        //             .tell(WorkerMessages::InternalStateUpdate(StateUpdate {
+        //                 seq_number,
+        //                 message,
+        //             }));
+        //     }
+        // };
         Handled::Ok
     }
 }
