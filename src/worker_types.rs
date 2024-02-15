@@ -6,8 +6,7 @@ pub enum WorkerMessages {
     External(External),
     InternalStateUpdate(StateUpdate),
 }
-//NOTE/TODO: not sure I like all these nested enums for future match statements, will probably
-//change later
+
 impl From<MasterMessage> for WorkerMessages {
     fn from(item: MasterMessage) -> Self {
         match item {
@@ -22,15 +21,15 @@ impl From<MasterMessage> for WorkerMessages {
 
 #[derive(Debug, Clone)]
 pub enum External {
-    WorkerRfpResponse,
-    WorkerStateUpdateConfirmation,
+    WorkerResponse(WorkerResponse),
     MasterMessage(MasterMessage),
 }
 
 #[derive(Debug, Clone)]
 pub enum WorkerResponse {
     RfpResponse(RfpResponse),
-    StateUpdateConfirmed(StateUpdate),
+    StateUpdateConfirmed,
+    NoResponse,
     // NOTE: acknowledgement mechanism as response to AcceptedProposalBroadcast from master
     // based on logic, master can then shutdown workers or send next rfp iteration when
     // received confirmations = num_workers
@@ -66,23 +65,41 @@ impl Worker {
             message_port: ProvidedPort::uninitialised(),
         }
     }
+
     fn update_state(&mut self, seq_number: i32, message: i32) {
         todo!();
     }
+
+    fn handle_worker_response(&mut self) -> WorkerResponse {
+        todo!();
+        WorkerResponse::NoResponse
+    }
+
+    fn generate_rfp(&mut self) -> WorkerResponse {
+        let res = todo!();
+        WorkerResponse::RfpResponse(res)
+    }
+
+    fn handle_accepted_proposal(&mut self) -> WorkerResponse {
+        todo!();
+        WorkerResponse::StateUpdateConfirmed
+    }
+
     fn handle_external(&mut self, msg: External) {
         match msg {
             External::MasterMessage(m) => self.handle_master_message(m),
-            External::WorkerRfpResponse => todo!(),
-            External::WorkerStateUpdateConfirmation => todo!(),
-        }
+            External::WorkerResponse(m) => self.handle_worker_response(),
+        };
     }
-    fn handle_master_message(&mut self, msg: MasterMessage) {
+
+    fn handle_master_message(&mut self, msg: MasterMessage) -> WorkerResponse {
         match msg {
-            MasterMessage::Rfp => todo!(),
+            MasterMessage::Rfp => self.generate_rfp(),
+
             MasterMessage::AcceptedProposalBroadcast {
                 seq_number,
                 message,
-            } => todo!(),
+            } => self.handle_accepted_proposal(),
         }
     }
 }
@@ -108,45 +125,7 @@ impl Actor for Worker {
 impl Provide<MessagePort> for Worker {
     fn handle(&mut self, event: MasterMessage) -> Handled {
         self.handle_master_message(event);
-        // match event {
-        //     MasterMessage::Rfp => {
-        //         //generate (assign to self.proposed_sequence_number) and return proposal response to Rfp Req
-        //         todo!();
-        //     }
-        //     MasterMessage::AcceptedProposalBroadcast {
-        //         seq_number,
-        //         message,
-        //     } => {
-        //         self.actor_ref()
-        //             .tell(WorkerMessages::InternalStateUpdate(StateUpdate {
-        //                 seq_number,
-        //                 message,
-        //             }));
-        //     }
-        // };
+
         Handled::Ok
     }
 }
-
-//
-// #[derive(Debug)]
-// pub enum InternalCommand {
-//     UpdateState { seq_num: i32, message: i32 },
-//     Start,
-//     Stop,
-//     Kill,
-// }
-// //Response status is for handling worker internal state prior to receivng/sending responses to Master
-// #[derive(Debug, Clone)]
-// enum ResponseStatus {
-//     Proposal,
-//     Acknowledged,
-// }
-//
-// fn default_response() -> WorkerResponse {
-//     WorkerResponse {
-//         proposed_sequence_number: None,
-//         msg: None,
-//         status: ResponseStatus::Acknowledged,
-//     }
-// }

@@ -32,6 +32,8 @@ impl Master {
         }
     }
     fn request_for_proposal(&mut self) {
+        //adding jitter component to simulate network latency for communication between master and
+        //workers
         let mut rng = rand::thread_rng();
         let jitter: u32 = rng.gen_range(25..100);
         let delay_duration = std::time::Duration::from_millis((jitter).into());
@@ -120,9 +122,13 @@ impl Require<MessagePort> for Master {
                     self.process_proposals();
                 }
             }
-            WorkerResponse::StateUpdateConfirmed(event) => {
-                todo!(); //acknowledge response
+            WorkerResponse::StateUpdateConfirmed => {
+                todo!(); //internally acknowledge response
             }
+            _ => debug!(
+                self.ctx.log(),
+                "Error: WorkerResponse::NoResponse sent to master"
+            ),
         }
 
         todo!();
