@@ -1,5 +1,37 @@
 use crate::master_types::*;
 use kompact::prelude::*;
+use rand::Rng;
+use std::{
+    cmp::Ordering,
+    collections::{btree_map, BTreeMap, BinaryHeap},
+};
+
+//NOTE: Writing priority queue as both binary heap and Btreemap, because im curious about
+//implementation, performance and testing both versions. For actual testing, comment out the unused type
+//and run without the overhead of managing both types, I'll write methods for both.
+
+#[derive(Debug, Clone, Eq)]
+pub struct BroadcastMessage {
+    sequence_number: i32,
+    content: usize,
+    deliverable: bool,
+}
+
+impl PartialEq for BroadcastMessage {
+    fn eq(&self, other: &Self) -> bool {
+        self.sequence_number == other.sequence_number
+    }
+}
+impl Ord for BroadcastMessage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.sequence_number.cmp(&other.sequence_number)
+    }
+}
+impl PartialOrd for BroadcastMessage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum WorkerMessages {
@@ -37,21 +69,23 @@ pub enum WorkerResponse {
 
 #[derive(Debug, Clone)]
 pub struct RfpResponse {
-    proposed_sequence_number: Option<i32>,
-    msg: Option<i32>,
+    proposed_message: BroadcastMessage,
 }
 
 #[derive(Debug, Clone)]
 pub struct StateUpdate {
     seq_number: i32,
-    message: i32,
+    message: u8,
 }
 
 #[derive(ComponentDefinition)]
 pub struct Worker {
     ctx: ComponentContext<Self>,
-    state: (i32, i32),
-    proposed_sequence_number: Option<i32>,
+    state: (u8, u8),
+    /// priority_queue as BinaryHeap
+    priority_queue: BinaryHeap<BroadcastMessage>,
+    ///priority queue as btreemap sorted by seq_number
+    priority_btree: BTreeMap<i32, BroadcastMessage>,
     message_port: ProvidedPort<MessagePort>,
 }
 ignore_lifecycle!(Worker);
@@ -61,12 +95,23 @@ impl Worker {
         Self {
             ctx: ComponentContext::uninitialised(),
             state: (0, 0),
-            proposed_sequence_number: None,
+            priority_queue: BinaryHeap::new(),
+            priority_btree: BTreeMap::new(),
             message_port: ProvidedPort::uninitialised(),
         }
     }
+    fn generate_message(&mut self) -> u8 {
+        let mut rng = rand::thread_rng();
+        let msg_value: u8 = rng.gen_range(0..=25);
+        msg_value
+    }
 
-    fn update_state(&mut self, seq_number: i32, message: i32) {
+    fn update_state(&mut self, seq_number: i32) {
+        todo!();
+    }
+    fn update_state_internal_message(&mut self, seq_number: i32, msg: u8) {
+        //NOTE: updating state through internal message passing, if message received via direct
+        //actor message passing, instead of port
         todo!();
     }
 
@@ -80,7 +125,8 @@ impl Worker {
         WorkerResponse::RfpResponse(res)
     }
 
-    fn handle_accepted_proposal(&mut self) -> WorkerResponse {
+    fn handle_accepted_proposal(&mut self, seq_number: i32, message: u8) -> WorkerResponse {
+        self.update_state(seq_number);
         todo!();
         WorkerResponse::StateUpdateConfirmed
     }
@@ -99,7 +145,7 @@ impl Worker {
             MasterMessage::AcceptedProposalBroadcast {
                 seq_number,
                 message,
-            } => self.handle_accepted_proposal(),
+            } => self.handle_accepted_proposal(seq_number, message),
         }
     }
 }
@@ -111,7 +157,7 @@ impl Actor for Worker {
         match msg {
             WorkerMessages::External(master_request) => self.handle_external(master_request),
             WorkerMessages::InternalStateUpdate(state_update) => {
-                self.update_state(state_update.seq_number, state_update.message);
+                self.update_state_internal_message(state_update.seq_number, state_update.message);
             }
         }
 

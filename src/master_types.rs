@@ -10,7 +10,7 @@ use std::{thread, time};
 pub struct Master {
     ctx: ComponentContext<Self>,
     message_port: RequiredPort<MessagePort>,
-    worker_count: usize,
+    worker_count: u8,
     workers: Vec<Arc<Component<Worker>>>,
     // worker_response: Vec<WorkerResponse>,
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
@@ -19,16 +19,16 @@ pub struct Master {
 }
 
 impl Master {
-    fn new(num_workers: usize) -> Self {
+    fn new(num_workers: u8) -> Self {
         Self {
             ctx: ComponentContext::uninitialised(),
             message_port: RequiredPort::uninitialised(),
             worker_count: num_workers,
-            workers: Vec::with_capacity(num_workers),
+            workers: Vec::with_capacity(num_workers.into()),
             // worker_response: Vec::new(),
             outstanding_proposals: None,
-            worker_response: Vec::with_capacity(num_workers),
-            worker_refs: Vec::with_capacity(num_workers),
+            worker_response: Vec::with_capacity(num_workers.into()),
+            worker_refs: Vec::with_capacity(num_workers.into()),
         }
     }
     fn request_for_proposal(&mut self) {
@@ -99,7 +99,7 @@ impl Actor for Master {
 #[derive(Debug, Clone)]
 pub enum MasterMessage {
     Rfp,
-    AcceptedProposalBroadcast { seq_number: i32, message: i32 },
+    AcceptedProposalBroadcast { seq_number: i32, message: u8 },
 }
 
 pub struct MessagePort;
@@ -116,7 +116,7 @@ impl Require<MessagePort> for Master {
                 println!("event {:?}", event);
                 self.worker_response
                     .push(Some(WorkerResponse::RfpResponse(event)));
-                if self.worker_response.len() == self.worker_count {
+                if self.worker_response.len() == self.worker_count.into() {
                     info!(self.ctx.log(), "proposals received from all workers");
                     println!("proposals received from all workers");
                     self.process_proposals();
