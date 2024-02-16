@@ -36,30 +36,6 @@ impl PartialOrd for BroadcastMessage {
 }
 
 #[derive(Debug, Clone)]
-pub enum WorkerMessages {
-    External(External),
-    InternalStateUpdate(StateUpdate),
-}
-
-impl From<MasterMessage> for External {
-    fn from(item: MasterMessage) -> Self {
-        match item {
-            MasterMessage::Rfp => External::MasterMessage(item),
-            MasterMessage::AcceptedProposalBroadcast {
-                seq_number,
-                message,
-            } => External::MasterMessage(item),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum External {
-    WorkerResponse(WorkerResponse),
-    MasterMessage(MasterMessage),
-}
-
-#[derive(Debug, Clone)]
 pub enum WorkerResponse {
     RfpResponse(RfpResponse),
     StateUpdateConfirmed,
@@ -160,13 +136,6 @@ impl Worker {
         WorkerResponse::StateUpdateConfirmed
     }
 
-    fn handle_external(&mut self, msg: External) {
-        match msg {
-            External::MasterMessage(m) => self.handle_master_message(m),
-            External::WorkerResponse(m) => self.handle_worker_response(),
-        };
-    }
-
     fn handle_master_message(&mut self, msg: MasterMessage) -> WorkerResponse {
         match msg {
             MasterMessage::Rfp => self.generate_rfp(),
@@ -180,17 +149,10 @@ impl Worker {
 }
 
 impl Actor for Worker {
-    type Message = External;
+    type Message = MasterMessage;
 
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
-        match msg {
-            External::MasterMessage(m) => self.handle_master_message(m),
-            External::WorkerResponse(_) => {
-                debug!(self.ctx.log(), "Error: wrong type sent to worker");
-                WorkerResponse::NoResponse
-            }
-        };
-        // self.handle_master_message(msg);
+        self.handle_master_message(msg);
 
         Handled::Ok
     }
