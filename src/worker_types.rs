@@ -38,11 +38,11 @@ impl PartialOrd for BroadcastMessage {
 #[derive(Debug, Clone)]
 pub enum WorkerResponse {
     RfpResponse(RfpResponse),
+    // NOTE: StateUpdateConfirmed: acknowledgement mechanism as response to
+    // AcceptedProposalBroadcast from master based on logic, master can then
+    // shutdown workers or send next rfp iteration when received confirmations = num_workers
     StateUpdateConfirmed,
     NoResponse,
-    // NOTE: acknowledgement mechanism as response to AcceptedProposalBroadcast from master
-    // based on logic, master can then shutdown workers or send next rfp iteration when
-    // received confirmations = num_workers
 }
 
 #[derive(Debug, Clone)]
@@ -111,21 +111,17 @@ impl Worker {
         (timestamp as i128) * 1000 + (self.worker_id as i128) * 100 + (index as i128)
     }
 
+    /// Method Updates state from accepted_proposal from sender (master)
     fn update_state(&mut self, seq_number: i32) {
         todo!();
     }
-    fn update_state_internal_message(&mut self, seq_number: i32, msg: u8) {
-        //NOTE: updating state through internal message passing, if message received via direct
-        //actor message passing, instead of port
-        todo!();
-    }
+    // fn update_state_internal_message(&mut self, seq_number: i32, msg: u8) {
+    //     //NOTE: updating state through internal message passing, if message received via direct
+    //     //actor message passing, instead of port
+    //     todo!();
+    // }
 
-    fn handle_worker_response(&mut self) -> WorkerResponse {
-        todo!();
-        WorkerResponse::NoResponse
-    }
-
-    fn generate_rfp(&mut self) -> WorkerResponse {
+    fn generate_rfp_response(&mut self) -> WorkerResponse {
         let res = todo!();
         WorkerResponse::RfpResponse(res)
     }
@@ -138,12 +134,18 @@ impl Worker {
 
     fn handle_master_message(&mut self, msg: MasterMessage) -> WorkerResponse {
         match msg {
-            MasterMessage::Rfp => self.generate_rfp(),
+            MasterMessage::Rfp => {
+                self.generate_rfp_response()
+                //TODO: send res back to master through port handle
+            }
 
             MasterMessage::AcceptedProposalBroadcast {
                 seq_number,
                 message,
-            } => self.handle_accepted_proposal(seq_number, message),
+            } => {
+                self.handle_accepted_proposal(seq_number, message)
+                //TODO: send StateUpdateConfirmation back to master through port handle
+            }
         }
     }
 }
@@ -179,7 +181,8 @@ impl ComponentLifecycle for Worker {
 
 impl Provide<MessagePort> for Worker {
     fn handle(&mut self, event: MasterMessage) -> Handled {
-        self.handle_master_message(event);
+        let res = self.handle_master_message(event);
+        //TODO send response back to master
 
         Handled::Ok
     }
