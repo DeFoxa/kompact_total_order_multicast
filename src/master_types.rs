@@ -61,8 +61,8 @@ impl Master {
 }
 impl ComponentLifecycle for Master {
     fn on_start(&mut self) -> Handled {
-        for _ in 0..self.worker_count {
-            let worker = self.ctx.system().create(|| Worker::new());
+        for i in 0..self.worker_count {
+            let worker = self.ctx.system().create(|| Worker::new(i));
             worker.connect_to_required(self.message_port.share());
             let worker_ref = worker.actor_ref().hold().expect("hold the worker refs");
             self.ctx.system().start(&worker);
