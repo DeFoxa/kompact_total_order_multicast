@@ -80,7 +80,7 @@ impl Worker {
     /// to the binaryheap/btreemap for later proposals/broadcasts. seq_number gen is based on
     /// timestamp and an index for spacing of the sequence_numbers - called with
     /// generate_sequence_number method.
-    fn initialize_message(&mut self) -> Result<()> {
+    fn initialize_message_queue(&mut self) -> Result<()> {
         let mut rng = rand::thread_rng();
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -90,10 +90,7 @@ impl Worker {
         for i in 0..10 {
             let seq_num = self.generate_sequence_number(current_time, i);
             let msg_value: u8 = rng.gen_range(0..=25).into();
-            let seq_num = self
-                .generate_sequence_number(current_time, i)
-                .try_into()
-                .unwrap();
+            let seq_num = self.generate_sequence_number(current_time, i).try_into()?;
 
             let msg = self.priority_queue.push(BroadcastMessage {
                 sequence_number: seq_num,

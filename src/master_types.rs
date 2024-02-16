@@ -105,7 +105,7 @@ impl Actor for Master {
 #[derive(Debug, Clone)]
 pub enum MasterMessage {
     Rfp,
-    AcceptedProposalBroadcast { seq_number: i32, message: u8 },
+    AcceptedProposalBroadcast { seq_number: i64, message: u8 },
 }
 
 pub struct MessagePort;
