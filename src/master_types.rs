@@ -15,7 +15,7 @@ pub struct Master {
     // worker_response: Vec<WorkerResponse>,
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
     worker_response: Vec<Option<WorkerResponse>>,
-    worker_refs: Vec<ActorRefStrong<WorkerMessages>>,
+    worker_refs: Vec<ActorRefStrong<External>>,
 }
 
 impl Master {

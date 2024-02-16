@@ -41,14 +41,14 @@ pub enum WorkerMessages {
     InternalStateUpdate(StateUpdate),
 }
 
-impl From<MasterMessage> for WorkerMessages {
+impl From<MasterMessage> for External {
     fn from(item: MasterMessage) -> Self {
         match item {
-            MasterMessage::Rfp => WorkerMessages::External(External::MasterMessage(item)),
+            MasterMessage::Rfp => External::MasterMessage(item),
             MasterMessage::AcceptedProposalBroadcast {
                 seq_number,
                 message,
-            } => WorkerMessages::External(External::MasterMessage(item)),
+            } => External::MasterMessage(item),
         }
     }
 }
@@ -180,15 +180,17 @@ impl Worker {
 }
 
 impl Actor for Worker {
-    type Message = WorkerMessages;
+    type Message = External;
 
     fn receive_local(&mut self, msg: Self::Message) -> Handled {
         match msg {
-            WorkerMessages::External(master_request) => self.handle_external(master_request),
-            WorkerMessages::InternalStateUpdate(state_update) => {
-                self.update_state_internal_message(state_update.seq_number, state_update.message);
+            External::MasterMessage(m) => self.handle_master_message(m),
+            External::WorkerResponse(_) => {
+                debug!(self.ctx.log(), "Error: wrong type sent to worker");
+                WorkerResponse::NoResponse
             }
-        }
+        };
+        // self.handle_master_message(msg);
 
         Handled::Ok
     }
