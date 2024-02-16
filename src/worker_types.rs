@@ -4,13 +4,11 @@ use kompact::prelude::*;
 use rand::Rng;
 use std::{
     cmp::Ordering,
-    collections::{btree_map, BTreeMap, BinaryHeap},
+    collections::BinaryHeap,
     time::{SystemTime, UNIX_EPOCH},
 };
-
-//NOTE: Writing priority queue as both binary heap and Btreemap, because im curious about
-//implementation, performance and testing both versions. For actual testing, comment out the unused type
-//and run without the overhead of managing both types, I'll write methods for both.
+// TODO: Write logic for generating RFP from priority_queue sequence_numbers
+// and updating state with accepted_proposal
 
 #[derive(Debug, Clone, Eq)]
 pub struct BroadcastMessage {
@@ -61,10 +59,8 @@ pub struct Worker {
     ctx: ComponentContext<Self>,
     worker_id: u8,
     state: (u8, u8),
-    /// priority_queue as BinaryHeap
     priority_queue: BinaryHeap<BroadcastMessage>,
-    ///priority queue as btreemap sorted by seq_number
-    priority_btree: BTreeMap<i32, BroadcastMessage>,
+    delivered_messages: Vec<u8>,
     message_port: ProvidedPort<MessagePort>,
 }
 // ignore_lifecycle!(Worker);
@@ -76,7 +72,7 @@ impl Worker {
             worker_id: id,
             state: (0, 0),
             priority_queue: BinaryHeap::new(),
-            priority_btree: BTreeMap::new(),
+            delivered_messages: Vec::new(),
             message_port: ProvidedPort::uninitialised(),
         }
     }
