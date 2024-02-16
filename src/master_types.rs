@@ -6,6 +6,12 @@ use rand::Rng;
 use std::sync::Arc;
 use std::{thread, time};
 
+//TODO: write method to process proposals from workers to determined accepted proposal
+// why do i have a process_response and process_proposal method? should only need one unless im
+// going to something specific with the StateUpdateConfirmed response. Also do I still need
+// outstanding_proposal field? Figure out what I'm doing with the receive_local on master, if
+// anything. may do all responses through port
+
 #[derive(ComponentDefinition)]
 pub struct Master {
     ctx: ComponentContext<Self>,
