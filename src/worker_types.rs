@@ -77,8 +77,8 @@ impl Worker {
         }
     }
     /// This method is called at worker start, it generates the mock messages that are then added
-    /// to the binaryheap/btreemap for later proposals/broadcasts. seq_number gen is based on
-    /// timestamp and an index for spacing of the sequence_numbers - called with
+    /// to the binaryheap for later proposals/broadcasts. seq_number gen is based on
+    /// timestamp, worker_id and an index for spacing of the sequence_numbers - called with
     /// generate_sequence_number method.
     fn initialize_message_queue(&mut self) -> Result<()> {
         let mut rng = rand::thread_rng();
@@ -105,7 +105,7 @@ impl Worker {
     }
 
     /// Method Updates state from accepted_proposal from sender (master)
-    fn update_state(&mut self, seq_number: i32) {
+    fn update_state(&mut self, msg_content: u8) {
         todo!();
     }
     // fn update_state_internal_message(&mut self, seq_number: i32, msg: u8) {
@@ -114,21 +114,21 @@ impl Worker {
     //     todo!();
     // }
 
-    fn generate_rfp_response(&mut self) -> WorkerResponse {
+    fn generate_rfp_response(&mut self) -> Result<WorkerResponse> {
         let res = todo!();
-        WorkerResponse::RfpResponse(res)
+        Ok(WorkerResponse::RfpResponse(res))
     }
 
-    fn handle_accepted_proposal(&mut self, seq_number: i32, message: u8) -> WorkerResponse {
-        self.update_state(seq_number);
+    fn handle_accepted_proposal(&mut self, seq_number: i64, message: u8) -> Result<WorkerResponse> {
+        self.update_state(message);
         todo!();
-        WorkerResponse::StateUpdateConfirmed
+        Ok(WorkerResponse::StateUpdateConfirmed)
     }
 
-    fn handle_master_message(&mut self, msg: MasterMessage) -> WorkerResponse {
+    fn handle_master_message(&mut self, msg: MasterMessage) -> Result<WorkerResponse> {
         match msg {
             MasterMessage::Rfp => {
-                self.generate_rfp_response()
+                Ok(self.generate_rfp_response()?)
                 //TODO: send res back to master through port handle
             }
 
@@ -136,7 +136,7 @@ impl Worker {
                 seq_number,
                 message,
             } => {
-                self.handle_accepted_proposal(seq_number, message)
+                Ok(self.handle_accepted_proposal(seq_number, message)?)
                 //TODO: send StateUpdateConfirmation back to master through port handle
             }
         }
@@ -162,6 +162,7 @@ impl ComponentLifecycle for Worker {
         // generatio of new mock messages, the worker will just pull from the binary heap and then
         // reorder the heap with accepted sequence numbers, until every worker heap is empty, then
         // the processes complete and shutdown
+        self.initialize_message_queue();
         Handled::Ok
     }
     fn on_stop(&mut self) -> Handled {

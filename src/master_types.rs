@@ -53,11 +53,15 @@ impl Master {
             });
         }
     }
-    async fn process_response(&mut self) {
-        todo!();
-    }
+    // async fn process_response(&mut self, msg: WorkerResponse) {
+    //     match msg {
+    //         WorkerResponse::RfpResponse(rfp) => self.process_proposals(rfp),
+    //         WorkerResponse::StateUpdateConfirmed => todo!(),
+    //         WorkerResponse::NoResponse => debug!(self.ctx.log(), "Receive NoResponse from Worker"),
+    //     }
+    // }
     fn process_proposals(&self) {
-        todo!();
+        // iterate through vec of worker response and run accept proposal algo
     }
     fn broadcast_accepted_proposal(&self, message: MasterMessage) {
         for worker in &self.worker_refs {
@@ -118,10 +122,15 @@ impl Port for MessagePort {
 impl Require<MessagePort> for Master {
     fn handle(&mut self, event: WorkerResponse) -> Handled {
         match event {
-            WorkerResponse::RfpResponse(event) => {
-                println!("event {:?}", event);
+            WorkerResponse::RfpResponse(ref msg) => {
+                println!("event {:?}", msg);
                 self.worker_response
-                    .push(Some(WorkerResponse::RfpResponse(event)));
+                    .push(Some(WorkerResponse::RfpResponse(msg.clone())));
+
+                // NOTE: below doesn't manage bugged worker states, will fix later:
+                // if single worker responds multiple times or doesn't response,
+                // system won't run proposal comparisons
+
                 if self.worker_response.len() == self.worker_count.into() {
                     info!(self.ctx.log(), "proposals received from all workers");
                     println!("proposals received from all workers");
