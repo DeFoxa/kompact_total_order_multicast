@@ -11,6 +11,11 @@ use std::{thread, time};
 // going to something specific with the StateUpdateConfirmed response. Also do I still need
 // outstanding_proposal field? Figure out what I'm doing with the receive_local on master, if
 // anything. may do all responses through port
+//
+//
+// TODO: Longer term todo: write worker and master handling for tracking active workers on master
+// side, so master has a way to verify active and inactive workers and handle state update
+// confirmation and outstanding rfp
 
 #[derive(ComponentDefinition)]
 pub struct Master {
@@ -22,6 +27,7 @@ pub struct Master {
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
     worker_response: Vec<Option<WorkerResponse>>,
     worker_refs: Vec<ActorRefStrong<MasterMessage>>,
+    local_clock: LamportClock,
 }
 
 impl Master {
@@ -35,11 +41,13 @@ impl Master {
             outstanding_proposals: None,
             worker_response: Vec::with_capacity(num_workers.into()),
             worker_refs: Vec::with_capacity(num_workers.into()),
+            local_clock: LamportClock::new(),
         }
     }
     fn request_for_proposal(&mut self) {
         //adding jitter component to simulate network latency for communication between master and
-        //workers
+        //workers, also introduces possiblity of asynchronous rfp/accepted receipt by worker which
+        //should be handled by btree and lamport clock
         let mut rng = rand::thread_rng();
         let jitter: u32 = rng.gen_range(25..100);
         let delay_duration = std::time::Duration::from_millis((jitter).into());
@@ -47,19 +55,15 @@ impl Master {
 
         for _ in workers.iter() {
             self.schedule_once(delay_duration, move |new_self, _context| {
-                new_self.message_port.trigger(MasterMessage::Rfp);
+                new_self.message_port.trigger(MasterMessage::Rfp {
+                    master_clock: new_self.local_clock.time(),
+                });
                 new_self.ctx().system().shutdown_async();
                 Handled::Ok
             });
         }
     }
-    // async fn process_response(&mut self, msg: WorkerResponse) {
-    //     match msg {
-    //         WorkerResponse::RfpResponse(rfp) => self.process_proposals(rfp),
-    //         WorkerResponse::StateUpdateConfirmed => todo!(),
-    //         WorkerResponse::NoResponse => debug!(self.ctx.log(), "Receive NoResponse from Worker"),
-    //     }
-    // }
+
     fn process_proposals(&self) {
         // iterate through vec of worker response and run accept proposal algo
     }
@@ -108,8 +112,14 @@ impl Actor for Master {
 
 #[derive(Debug, Clone)]
 pub enum MasterMessage {
-    Rfp,
-    AcceptedProposalBroadcast { seq_number: i64, message: u8 },
+    Rfp {
+        master_clock: u64,
+    },
+    AcceptedProposalBroadcast {
+        seq_number: i64,
+        message: u8,
+        logical_time: LamportClock,
+    },
 }
 
 pub struct MessagePort;
@@ -128,7 +138,7 @@ impl Require<MessagePort> for Master {
                     .push(Some(WorkerResponse::RfpResponse(msg.clone())));
 
                 // NOTE: below doesn't manage bugged worker states, will fix later:
-                // if single worker responds multiple times or doesn't response,
+                // if single worker responds multiple times or doesn't respond,
                 // system won't run proposal comparisons
 
                 if self.worker_response.len() == self.worker_count.into() {
@@ -137,7 +147,10 @@ impl Require<MessagePort> for Master {
                     self.process_proposals();
                 }
             }
-            WorkerResponse::StateUpdateConfirmed => {
+            WorkerResponse::StateUpdateConfirmed {
+                worker_id,
+                logical_time,
+            } => {
                 todo!(); //internally acknowledge response
             }
             _ => debug!(
@@ -147,5 +160,24 @@ impl Require<MessagePort> for Master {
         }
 
         todo!();
+    }
+}
+#[derive(Debug, Clone)]
+pub struct LamportClock {
+    time: u64,
+}
+
+impl LamportClock {
+    fn new() -> Self {
+        LamportClock { time: 0 }
+    }
+    fn increment(&mut self) {
+        self.time += 1;
+    }
+    fn adjust(&mut self, incoming_time: u64) {
+        self.time = std::cmp::max(self.time, incoming_time) + 1;
+    }
+    fn time(&self) -> u64 {
+        self.time
     }
 }

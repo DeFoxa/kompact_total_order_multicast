@@ -3,8 +3,8 @@ use anyhow::Result;
 use kompact::prelude::*;
 use rand::Rng;
 use std::{
-    cmp::Ordering,
-    collections::BinaryHeap,
+    cmp::{Ordering, Reverse},
+    collections::{BTreeMap, BinaryHeap},
     time::{SystemTime, UNIX_EPOCH},
 };
 // TODO: Write logic for generating RFP from priority_queue sequence_numbers
@@ -12,6 +12,7 @@ use std::{
 
 #[derive(Debug, Clone, Eq)]
 pub struct BroadcastMessage {
+    worker_id: u8,
     sequence_number: i64,
     content: u8,
     deliverable: bool,
@@ -36,16 +37,22 @@ impl PartialOrd for BroadcastMessage {
 #[derive(Debug, Clone)]
 pub enum WorkerResponse {
     RfpResponse(RfpResponse),
-    // NOTE: StateUpdateConfirmed: acknowledgement mechanism as response to
-    // AcceptedProposalBroadcast from master based on logic, master can then
-    // shutdown workers or send next rfp iteration when received confirmations = num_workers
-    StateUpdateConfirmed,
+    // NOTE: StateUpdateConfirmed: include worker_id num and logical_time from associated rfp
+    StateUpdateConfirmed {
+        worker_id: u8,
+        logical_time: LamportClock,
+    },
     NoResponse,
+}
+#[derive(Debug, Clone)]
+pub struct Proposal {
+    logical_time: LamportClock,
+    proposal: BroadcastMessage,
 }
 
 #[derive(Debug, Clone)]
 pub struct RfpResponse {
-    proposed_message: BroadcastMessage,
+    proposed_message: Proposal,
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +67,7 @@ pub struct Worker {
     worker_id: u8,
     state: (u8, u8),
     priority_queue: BinaryHeap<BroadcastMessage>,
-    delivered_messages: Vec<u8>,
+    delivered_messages: BTreeMap<LamportClock, u8>,
     message_port: ProvidedPort<MessagePort>,
 }
 // ignore_lifecycle!(Worker);
@@ -72,7 +79,7 @@ impl Worker {
             worker_id: id,
             state: (0, 0),
             priority_queue: BinaryHeap::new(),
-            delivered_messages: Vec::new(),
+            delivered_messages: BTreeMap::new(),
             message_port: ProvidedPort::uninitialised(),
         }
     }
@@ -93,6 +100,7 @@ impl Worker {
             let seq_num = self.generate_sequence_number(current_time, i).try_into()?;
 
             let msg = self.priority_queue.push(BroadcastMessage {
+                worker_id: self.worker_id,
                 sequence_number: seq_num,
                 content: msg_value,
                 deliverable: false,
@@ -106,28 +114,40 @@ impl Worker {
 
     /// Method Updates state from accepted_proposal from sender (master)
     fn update_state(&mut self, msg_content: u8) {
-        todo!();
+        // step 1: add msg_content: u8 to current state element at index 0
+        let updated_element = (self.state.0 + msg_content) % 100;
+        // step 2: rotate state.0 and state.1
+        self.state = (self.state.1, updated_element);
     }
-    // fn update_state_internal_message(&mut self, seq_number: i32, msg: u8) {
-    //     //NOTE: updating state through internal message passing, if message received via direct
-    //     //actor message passing, instead of port
-    //     todo!();
-    // }
 
     fn generate_rfp_response(&mut self) -> Result<WorkerResponse> {
+        //TODO: pull Reverse BinaryHeap for lowest timestamp in BH, generate proposal with
+        //logical_time from rfp and associated BroadcastMessage
         let res = todo!();
         Ok(WorkerResponse::RfpResponse(res))
     }
 
-    fn handle_accepted_proposal(&mut self, seq_number: i64, message: u8) -> Result<WorkerResponse> {
+    fn handle_accepted_proposal(
+        &mut self,
+        seq_number: i64,
+        message: u8,
+        logical_time: LamportClock,
+    ) -> Result<WorkerResponse> {
+        // TODO search if accepted proposal matches sequence number of entries in BH, if yes, mark
+        // delivered, deliver then pop from BH
         self.update_state(message);
+        //TODO: Log delivered message into Btreemap ordered by logical_time
         todo!();
-        Ok(WorkerResponse::StateUpdateConfirmed)
+        let id = self.worker_id;
+        Ok(WorkerResponse::StateUpdateConfirmed {
+            worker_id: self.worker_id,
+            logical_time,
+        })
     }
 
     fn handle_master_message(&mut self, msg: MasterMessage) -> Result<WorkerResponse> {
         match msg {
-            MasterMessage::Rfp => {
+            MasterMessage::Rfp { master_clock } => {
                 Ok(self.generate_rfp_response()?)
                 //TODO: send res back to master through port handle
             }
@@ -135,9 +155,10 @@ impl Worker {
             MasterMessage::AcceptedProposalBroadcast {
                 seq_number,
                 message,
+                logical_time,
             } => {
-                Ok(self.handle_accepted_proposal(seq_number, message)?)
-                //TODO: send StateUpdateConfirmation back to master through port handle
+                Ok(self.handle_accepted_proposal(seq_number, message, logical_time)?)
+                //TODO: send StateUpdateConfirmation, include worker_id and logical_time,  back to master through port handle
             }
         }
     }
