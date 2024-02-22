@@ -7,15 +7,12 @@ use std::{
     collections::{BTreeMap, BinaryHeap},
     time::{SystemTime, UNIX_EPOCH},
 };
-// TODO: Write logic for generating RFP from priority_queue sequence_numbers
-// and updating state with accepted_proposal
-
 #[derive(Debug, Clone, Eq)]
 pub struct BroadcastMessage {
-    worker_id: u8,
-    sequence_number: i64,
-    content: u8,
-    deliverable: bool,
+    pub worker_id: u8,
+    pub sequence_number: i64,
+    pub content: u8,
+    pub deliverable: bool,
 }
 
 impl PartialEq for BroadcastMessage {
@@ -46,13 +43,14 @@ pub enum WorkerResponse {
 }
 #[derive(Debug, Clone)]
 pub struct Proposal {
-    logical_time: LamportClock,
-    proposal: BroadcastMessage,
+    pub logical_time: LamportClock,
+    pub worker_id: u8,
+    pub proposal: BroadcastMessage,
 }
 
 #[derive(Debug, Clone)]
 pub struct RfpResponse {
-    proposed_message: Proposal,
+    pub proposed_message: Proposal,
 }
 
 #[derive(Debug, Clone)]
@@ -138,7 +136,6 @@ impl Worker {
         self.update_state(message);
         //TODO: Log delivered message into Btreemap ordered by logical_time
         todo!();
-        let id = self.worker_id;
         Ok(WorkerResponse::StateUpdateConfirmed {
             worker_id: self.worker_id,
             logical_time,
@@ -196,8 +193,8 @@ impl ComponentLifecycle for Worker {
 
 impl Provide<MessagePort> for Worker {
     fn handle(&mut self, event: MasterMessage) -> Handled {
-        let res = self.handle_master_message(event);
-        //TODO send response back to master
+        let res = self.handle_master_message(event).unwrap();
+        self.message_port.trigger(res);
 
         Handled::Ok
     }

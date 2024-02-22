@@ -1,5 +1,5 @@
 use crate::worker_types::*;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use futures::future::join;
 use kompact::prelude::*;
 use rand::Rng;
@@ -63,10 +63,44 @@ impl Master {
             });
         }
     }
-
-    fn process_proposals(&self) {
-        // iterate through vec of worker response and run accept proposal algo
+    fn filter_broadcast_propsals(&self) -> Result<Vec<(LamportClock, BroadcastMessage)>> {
+        let filtered_proposals = self
+            .worker_response
+            .clone()
+            .into_iter()
+            .filter_map(|response| match response {
+                Some(WorkerResponse::RfpResponse(rfp_response)) => Some((
+                    rfp_response.proposed_message.logical_time,
+                    rfp_response.proposed_message.proposal,
+                )),
+                _ => None,
+            })
+            .collect();
+        Ok(filtered_proposals)
     }
+
+    fn process_proposals(&self) -> Result<MasterMessage> {
+        let proposals = self.filter_broadcast_propsals()?;
+        let accepted = proposals.iter().min_by(|a, b| {
+            a.1.sequence_number
+                .cmp(&b.1.sequence_number)
+                .then_with(|| a.1.worker_id.cmp(&b.1.worker_id))
+        });
+        match accepted {
+            Some((lamport_clock, broadcast_message)) => {
+                Ok(MasterMessage::AcceptedProposalBroadcast {
+                    seq_number: broadcast_message.sequence_number,
+                    message: broadcast_message.content,
+                    logical_time: lamport_clock.clone(),
+                })
+            }
+            None => {
+                debug!(self.ctx.log(), "failed to determine proposal");
+                Err(anyhow!("failed to determine accepted proposal"))
+            }
+        }
+    }
+
     fn broadcast_accepted_proposal(&self, message: MasterMessage) {
         for worker in &self.worker_refs {
             worker.tell(message.clone());
