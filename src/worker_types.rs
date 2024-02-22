@@ -7,6 +7,13 @@ use std::{
     collections::{BTreeMap, BinaryHeap},
     time::{SystemTime, UNIX_EPOCH},
 };
+
+//TODO: Rewrite generation of binary heap sequence_numbers and messages at initialization
+//TODO: write gen of rfp response using Reverse BinaryHeap (min heap) pull with seq_num & msg
+//TODO: write logic to handle accepted proposal from master: verify if worker = owner of accepted
+//porposal, if yes mark deliverable, update state using message content, log logical_time and
+//message in binary heap, resond with state_update cconfirmed {associated logical_time, worker_id}
+
 #[derive(Debug, Clone, Eq)]
 pub struct BroadcastMessage {
     pub worker_id: u8,
