@@ -4,7 +4,10 @@ use futures::future::join;
 use kompact::prelude::*;
 use rand::Rng;
 use std::sync::Arc;
-use std::{thread, time};
+use std::{
+    cmp::Ordering,
+    {thread, time},
+};
 
 //TODO: write method to process proposals from workers to determined accepted proposal
 // why do i have a process_response and process_proposal method? should only need one unless im
@@ -53,6 +56,9 @@ impl Master {
         let delay_duration = std::time::Duration::from_millis((jitter).into());
         let workers = self.worker_refs.clone();
 
+        // does adding the jitter here make sense? verify if the trigger method goes out to all
+        // members of the port simultaneously, feel like I read that it may not, in which case
+        // jitter here is fine. otherwise have to add mock network latency on the worker side
         for _ in workers.iter() {
             self.schedule_once(delay_duration, move |new_self, _context| {
                 new_self.message_port.trigger(MasterMessage::Rfp {
@@ -89,6 +95,7 @@ impl Master {
         match accepted {
             Some((lamport_clock, broadcast_message)) => {
                 Ok(MasterMessage::AcceptedProposalBroadcast {
+                    worker_id: broadcast_message.worker_id,
                     seq_number: broadcast_message.sequence_number,
                     message: broadcast_message.content,
                     logical_time: lamport_clock.clone(),
@@ -150,6 +157,7 @@ pub enum MasterMessage {
         master_clock: LamportClock,
     },
     AcceptedProposalBroadcast {
+        worker_id: u8,
         seq_number: i64,
         message: u8,
         logical_time: LamportClock,
@@ -196,9 +204,9 @@ impl Require<MessagePort> for Master {
         todo!();
     }
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialOrd, PartialEq)]
 pub struct LamportClock {
-    time: u64,
+    pub time: u64,
 }
 
 impl LamportClock {
@@ -213,5 +221,11 @@ impl LamportClock {
     }
     pub fn time(&self) -> u64 {
         self.time
+    }
+}
+
+impl Ord for LamportClock {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.time.cmp(&other.time)
     }
 }

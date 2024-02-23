@@ -15,8 +15,8 @@ use std::{
 // that top of deliverable queue is next sequential logical-time relative to previously delivered
 // message's logical time and then that the first delivered message = rfp @ logical time 1. I
 // think, this sounds correct but I'll look into theoretical methods for handling this situation.
+
 //TODO: Rewrite generation of binary heap sequence_numbers and messages at initialization
-//TODO: write gen of rfp response using Reverse BinaryHeap (min heap) pull with seq_num & msg
 //TODO: write logic to handle accepted proposal from master: verify if worker = owner of accepted
 //proposal, if yes mark deliverable, update state using message content, log logical_time and
 //message in binary heap, resond with state_update cconfirmed {associated logical_time, worker_id}
@@ -161,12 +161,19 @@ impl Worker {
 
     fn handle_accepted_proposal(
         &mut self,
+        accepted_worker_id: u8,
         seq_number: i64,
         message: u8,
         logical_time: LamportClock,
     ) -> Result<WorkerResponse> {
         // TODO search if accepted proposal matches sequence number of entries in BH, if yes, mark
         // delivered, deliver then pop from BH
+        if let Some(top_message) = self.priority_queue.peek() {
+            if top_message.0.sequence_number == seq_number || accepted_worker_id == self.worker_id {
+                self.queue_message_for_delivery(message, logical_time);
+            }
+        }
+
         self.update_state(message);
         //TODO: Log delivered message into Btreemap ordered by logical_time
         todo!();
@@ -174,6 +181,18 @@ impl Worker {
             worker_id: self.worker_id,
             logical_time,
         })
+    }
+    fn queue_message_for_delivery(&self, message: u8, logical_time: LamportClock) -> Result<()> {
+        if let Some(last_delivered) = self.delivered_messages.iter().max_by_key(|p| p.0) {
+            if last_delivered.0.time == logical_time.time + 1 {
+                todo!();
+                //deliver messsage and update state
+            } else {
+                todo!();
+                //queue message
+            }
+        }
+        Ok(())
     }
 
     fn handle_master_message(&mut self, msg: MasterMessage) -> Result<WorkerResponse> {
@@ -184,11 +203,12 @@ impl Worker {
             }
 
             MasterMessage::AcceptedProposalBroadcast {
+                worker_id,
                 seq_number,
                 message,
                 logical_time,
             } => {
-                Ok(self.handle_accepted_proposal(seq_number, message, logical_time)?)
+                Ok(self.handle_accepted_proposal(worker_id, seq_number, message, logical_time)?)
                 //TODO: send StateUpdateConfirmation, include worker_id and logical_time,  back to master through port handle
             }
         }
