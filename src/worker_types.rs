@@ -17,7 +17,7 @@ use std::{
 // think, this sounds correct but I'll look into theoretical methods for handling this situation.
 
 //TODO: Rewrite generation of binary heap sequence_numbers and messages at initialization
-//TODO: write logic to handle accepted proposal from master: verify if worker = owner of accepted
+//TODO (In Progress: handle_accepted_proposal, queue_message_for_delivery): write logic to handle accepted proposal from master: verify if worker = owner of accepted
 //proposal, if yes mark deliverable, update state using message content, log logical_time and
 //message in binary heap, resond with state_update cconfirmed {associated logical_time, worker_id}
 

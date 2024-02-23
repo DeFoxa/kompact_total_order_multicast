@@ -14,11 +14,11 @@ use std::{
 // going to something specific with the StateUpdateConfirmed response. Also do I still need
 // outstanding_proposal field? Figure out what I'm doing with the receive_local on master, if
 // anything. may do all responses through port
-//
-//
+// TODO: write handling for state_update_confirmed: TBD how these are managed/confirmed by master
 // TODO: Longer term todo: write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
+// TODO: Finish errors.rs structure, methods and implemented on master/worker
 
 #[derive(ComponentDefinition)]
 pub struct Master {
