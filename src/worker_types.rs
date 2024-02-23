@@ -1,5 +1,5 @@
 use crate::master_types::*;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use kompact::prelude::*;
 use rand::Rng;
 use std::{
@@ -11,7 +11,7 @@ use std::{
 //TODO: Rewrite generation of binary heap sequence_numbers and messages at initialization
 //TODO: write gen of rfp response using Reverse BinaryHeap (min heap) pull with seq_num & msg
 //TODO: write logic to handle accepted proposal from master: verify if worker = owner of accepted
-//porposal, if yes mark deliverable, update state using message content, log logical_time and
+//proposal, if yes mark deliverable, update state using message content, log logical_time and
 //message in binary heap, resond with state_update cconfirmed {associated logical_time, worker_id}
 
 #[derive(Debug, Clone, Eq)]
@@ -66,12 +66,14 @@ pub struct StateUpdate {
     message: u8,
 }
 
+///Note: priority_queue implementation a Min heap using cmp::Reverse, for ordering by lowest
+///sequence number (rfp proposal)
 #[derive(ComponentDefinition)]
 pub struct Worker {
     ctx: ComponentContext<Self>,
     worker_id: u8,
     state: (u8, u8),
-    priority_queue: BinaryHeap<BroadcastMessage>,
+    priority_queue: BinaryHeap<Reverse<BroadcastMessage>>,
     delivered_messages: BTreeMap<LamportClock, u8>,
     message_port: ProvidedPort<MessagePort>,
 }
@@ -104,12 +106,12 @@ impl Worker {
             let msg_value: u8 = rng.gen_range(0..=25).into();
             let seq_num = self.generate_sequence_number(current_time, i).try_into()?;
 
-            let msg = self.priority_queue.push(BroadcastMessage {
+            let msg = self.priority_queue.push(Reverse(BroadcastMessage {
                 worker_id: self.worker_id,
                 sequence_number: seq_num,
                 content: msg_value,
                 deliverable: false,
-            });
+            }));
         }
         Ok(())
     }
@@ -125,11 +127,29 @@ impl Worker {
         self.state = (self.state.1, updated_element);
     }
 
-    fn generate_rfp_response(&mut self) -> Result<WorkerResponse> {
+    fn generate_rfp_response(&mut self, rfp_logical_time: LamportClock) -> Result<WorkerResponse> {
         //TODO: pull Reverse BinaryHeap for lowest timestamp in BH, generate proposal with
         //logical_time from rfp and associated BroadcastMessage
-        let res = todo!();
-        Ok(WorkerResponse::RfpResponse(res))
+        if let Some(Reverse(top_of_queue)) = self.priority_queue.peek() {
+            let proposal = Proposal {
+                logical_time: rfp_logical_time,
+                worker_id: self.worker_id,
+                proposal: top_of_queue.clone(),
+            };
+
+            let response = WorkerResponse::RfpResponse(RfpResponse {
+                proposed_message: proposal,
+            });
+            Ok(response)
+        } else {
+            info!(
+                self.ctx.log(),
+                "priority queue empty, can't generate rfp response"
+            );
+            Err(anyhow!("Priority queue empty"))
+        }
+
+        // Ok(WorkerResponse::RfpResponse(response))
     }
 
     fn handle_accepted_proposal(
@@ -152,7 +172,7 @@ impl Worker {
     fn handle_master_message(&mut self, msg: MasterMessage) -> Result<WorkerResponse> {
         match msg {
             MasterMessage::Rfp { master_clock } => {
-                Ok(self.generate_rfp_response()?)
+                Ok(self.generate_rfp_response(master_clock)?)
                 //TODO: send res back to master through port handle
             }
 

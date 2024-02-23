@@ -56,7 +56,7 @@ impl Master {
         for _ in workers.iter() {
             self.schedule_once(delay_duration, move |new_self, _context| {
                 new_self.message_port.trigger(MasterMessage::Rfp {
-                    master_clock: new_self.local_clock.time(),
+                    master_clock: new_self.local_clock,
                 });
                 new_self.ctx().system().shutdown_async();
                 Handled::Ok
@@ -147,7 +147,7 @@ impl Actor for Master {
 #[derive(Debug, Clone)]
 pub enum MasterMessage {
     Rfp {
-        master_clock: u64,
+        master_clock: LamportClock,
     },
     AcceptedProposalBroadcast {
         seq_number: i64,
@@ -196,22 +196,22 @@ impl Require<MessagePort> for Master {
         todo!();
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct LamportClock {
     time: u64,
 }
 
 impl LamportClock {
-    fn new() -> Self {
+    pub fn new() -> Self {
         LamportClock { time: 0 }
     }
-    fn increment(&mut self) {
+    pub fn increment(&mut self) {
         self.time += 1;
     }
-    fn adjust(&mut self, incoming_time: u64) {
+    pub fn adjust(&mut self, incoming_time: u64) {
         self.time = std::cmp::max(self.time, incoming_time) + 1;
     }
-    fn time(&self) -> u64 {
+    pub fn time(&self) -> u64 {
         self.time
     }
 }
