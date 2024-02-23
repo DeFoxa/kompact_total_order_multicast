@@ -8,6 +8,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+// **NOTE**: current worker state update handling is incorrect in async environment. We need to
+// create a queue to store messages, verify that next sequential deliverable message matches the
+// correct logical_time ordering. if accepted proposal on rfp with logical time 4 arrives at worker
+// before accepted prop at logical time 3, we need to queue 4 and wait for 3. i.e. we need to check
+// that top of deliverable queue is next sequential logical-time relative to previously delivered
+// message's logical time and then that the first delivered message = rfp @ logical time 1. I
+// think, this sounds correct but I'll look into theoretical methods for handling this situation.
 //TODO: Rewrite generation of binary heap sequence_numbers and messages at initialization
 //TODO: write gen of rfp response using Reverse BinaryHeap (min heap) pull with seq_num & msg
 //TODO: write logic to handle accepted proposal from master: verify if worker = owner of accepted
