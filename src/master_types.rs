@@ -27,6 +27,7 @@ pub struct Master {
     worker_count: u8,
     workers: Vec<Arc<Component<Worker>>>,
     // worker_response: Vec<WorkerResponse>,
+    // NOTE: below currently unused, keeping it in case we switch to Ask method for req/res for rfp
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
     worker_response: Vec<Option<WorkerResponse>>,
     worker_refs: Vec<ActorRefStrong<MasterMessage>>,
@@ -59,6 +60,7 @@ impl Master {
         // does adding the jitter here make sense? verify if the trigger method goes out to all
         // members of the port simultaneously, feel like I read that it may not, in which case
         // jitter here is fine. otherwise have to add mock network latency on the worker side
+
         for _ in workers.iter() {
             self.schedule_once(delay_duration, move |new_self, _context| {
                 new_self.message_port.trigger(MasterMessage::Rfp {
@@ -95,10 +97,8 @@ impl Master {
         match accepted {
             Some((lamport_clock, broadcast_message)) => {
                 Ok(MasterMessage::AcceptedProposalBroadcast {
-                    worker_id: broadcast_message.worker_id,
-                    seq_number: broadcast_message.sequence_number,
-                    message: broadcast_message.content,
                     logical_time: lamport_clock.clone(),
+                    broadcast_message: broadcast_message.clone(),
                 })
             }
             None => {
@@ -157,10 +157,11 @@ pub enum MasterMessage {
         master_clock: LamportClock,
     },
     AcceptedProposalBroadcast {
-        worker_id: u8,
-        seq_number: i64,
-        message: u8,
         logical_time: LamportClock,
+        broadcast_message: BroadcastMessage,
+        // worker_id: u8,
+        // seq_number: i64,
+        // message: u8,
     },
 }
 
