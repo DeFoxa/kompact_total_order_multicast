@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result};
 use futures::future::join;
 use kompact::prelude::*;
 use rand::Rng;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::{
     cmp::Ordering,
@@ -18,34 +19,42 @@ use std::{
 // TODO: Longer term todo: write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
+// TODO: Consider adding a worker state enum type from master, each active worker, connected to
+// master, will have a designated state (Active, PossibleFault, Dead). state updates relative to
+// receipt of proposals and state_update_Confirmation
 // TODO: Finish errors.rs structure, methods and implemented on master/worker
 
 #[derive(ComponentDefinition)]
 pub struct Master {
     ctx: ComponentContext<Self>,
     message_port: RequiredPort<MessagePort>,
-    worker_count: u8,
-    workers: Vec<Arc<Component<Worker>>>,
+    worker_states: HashMap<WorkerId, WorkerState>,
+    worker_components: Vec<Arc<Component<Worker>>>,
     // worker_response: Vec<WorkerResponse>,
     // NOTE: below currently unused, keeping it in case we switch to Ask method for req/res for rfp
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
     worker_response: Vec<Option<WorkerResponse>>,
     worker_refs: Vec<ActorRefStrong<MasterMessage>>,
-    local_clock: LamportClock,
+    logical_clock: LamportClock,
 }
 
 impl Master {
     fn new(num_workers: u8) -> Self {
+        let mut worker_map: HashMap<WorkerId, WorkerState> = HashMap::new();
+        for i in 0..num_workers {
+            worker_map.insert(WorkerId(i), WorkerState::default());
+        }
+
         Self {
             ctx: ComponentContext::uninitialised(),
             message_port: RequiredPort::uninitialised(),
-            worker_count: num_workers,
-            workers: Vec::with_capacity(num_workers.into()),
+            worker_states: worker_map,
+            worker_components: Vec::with_capacity(num_workers.into()),
             // worker_response: Vec::new(),
             outstanding_proposals: None,
             worker_response: Vec::with_capacity(num_workers.into()),
             worker_refs: Vec::with_capacity(num_workers.into()),
-            local_clock: LamportClock::new(),
+            logical_clock: LamportClock::new(),
         }
     }
     fn request_for_proposal(&mut self) {
@@ -64,7 +73,7 @@ impl Master {
         for _ in workers.iter() {
             self.schedule_once(delay_duration, move |new_self, _context| {
                 new_self.message_port.trigger(MasterMessage::Rfp {
-                    master_clock: new_self.local_clock,
+                    master_clock: new_self.logical_clock,
                 });
                 new_self.ctx().system().shutdown_async();
                 Handled::Ok
@@ -116,12 +125,17 @@ impl Master {
 }
 impl ComponentLifecycle for Master {
     fn on_start(&mut self) -> Handled {
-        for i in 0..self.worker_count {
-            let worker = self.ctx.system().create(|| Worker::new(i));
+        for i in 0..self.worker_states.len() {
+            let worker = self
+                .ctx
+                .system()
+                .create(|| Worker::new(i.try_into().unwrap()));
+
             worker.connect_to_required(self.message_port.share());
+
             let worker_ref = worker.actor_ref().hold().expect("hold the worker refs");
             self.ctx.system().start(&worker);
-            self.workers.push(worker);
+            self.worker_components.push(worker);
             self.worker_refs.push(worker_ref);
         }
         self.request_for_proposal();
@@ -130,7 +144,7 @@ impl ComponentLifecycle for Master {
     fn on_stop(&mut self) -> Handled {
         self.worker_refs.clear();
         let sys = self.ctx.system();
-        self.workers.drain(..).for_each(|worker| {
+        self.worker_components.drain(..).for_each(|worker| {
             sys.stop(&worker);
         });
         Handled::Ok
@@ -159,9 +173,6 @@ pub enum MasterMessage {
     AcceptedProposalBroadcast {
         logical_time: LamportClock,
         broadcast_message: BroadcastMessage,
-        // worker_id: u8,
-        // seq_number: i64,
-        // message: u8,
     },
 }
 
@@ -184,7 +195,7 @@ impl Require<MessagePort> for Master {
                 // if single worker responds multiple times or doesn't respond,
                 // system won't run proposal comparisons
 
-                if self.worker_response.len() == self.worker_count.into() {
+                if self.worker_response.len() == self.worker_states.len() {
                     info!(self.ctx.log(), "proposals received from all workers");
                     println!("proposals received from all workers");
                     self.process_proposals();
@@ -205,6 +216,23 @@ impl Require<MessagePort> for Master {
         todo!();
     }
 }
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct WorkerId(pub u8);
+
+#[derive(Debug, Clone, Default, Hash, PartialEq)]
+pub enum WorkerState {
+    #[default]
+    Start,
+    Active,
+    PossibleFault,
+    Dead,
+}
+impl WorkerState {
+    fn active(&mut self) -> Self {
+        WorkerState::Active
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialOrd, PartialEq)]
 pub struct LamportClock {
     pub time: u64,
