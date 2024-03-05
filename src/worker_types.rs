@@ -54,6 +54,7 @@ pub enum WorkerResponse {
         worker_id: u8,
         logical_time: LamportClock,
     },
+    MessageQueueEmpty,
     NoResponse,
 }
 #[derive(Debug, Clone)]
@@ -157,7 +158,7 @@ impl Worker {
                 self.ctx.log(),
                 "priority queue empty, can't generate rfp response"
             );
-            Err(anyhow!("Priority queue empty"))
+            Ok(WorkerResponse::MessageQueueEmpty)
         }
     }
 
@@ -166,38 +167,26 @@ impl Worker {
         logical_time: LamportClock,
         broadcast_message: BroadcastMessage,
     ) -> Result<WorkerResponse> {
-        // TODO search if accepted proposal matches sequence number of entries in BH, if yes, mark
-        // delivered, deliver then pop from BH
-        if let Some(top_of_queue) = self.undelivered_priority_queue.peek() {
-            if top_of_queue.0.sequence_number == broadcast_message.sequence_number
-                || broadcast_message.worker_id == self.worker_id
+        /// Checks if current worker generated the accepted proposal, if true pop BroadcastMessage
+        /// message off of undelivered_priority_queue, mark as deliverable -> add to deliverable
+        /// queue -> run logic to verify proper ordering of message delivery -> deliver. Else
+        /// directly queue message in deliverable_queue -> run logic for proper ordering -> update
+        /// state and deliver
+        match self.undelivered_priority_queue.peek() {
+            Some(top_of_queue)
+                if top_of_queue.0.sequence_number == broadcast_message.sequence_number
+                    || broadcast_message.worker_id == self.worker_id =>
             {
                 let mut deliverable_message = self.undelivered_priority_queue.pop().unwrap();
                 deliverable_message.0.deliverable = true;
                 let result = self.queue_message_or_deliver(logical_time, deliverable_message.0)?;
-                return Ok(result);
-            } else {
-                // let message = BroadcastMessage {
-                //     worker_id: accepted_worker_id,
-                //     sequence_number: seq_number,
-                //     content: message,
-                //     deliverable: true,
-                // };
+                Ok(result)
+            }
+            _ => {
                 let result = self.queue_message_or_deliver(logical_time, broadcast_message)?;
-                return Ok(result);
-
-                // accepted proposal belongs to another worker,
-                // update state and deliver message
+                Ok(result)
             }
         }
-
-        self.update_state(broadcast_message.content);
-        //TODO: Log delivered message into Btreemap ordered by logical_time
-        todo!();
-        // Ok(WorkerResponse::StateUpdateConfirmed {
-        //     worker_id: self.worker_id,
-        //     logical_time,
-        // })
     }
     fn queue_message_or_deliver(
         &mut self,
@@ -210,23 +199,36 @@ impl Worker {
                 self.delivered_messages
                     .insert(logical_time, broadcast_message);
                 // let new_clock = logical_time.time + 1;
-                self.process_queue_for_sequential_deliverables(LamportClock {
+                self.recursively_process_queue_for_sequential_deliverables(LamportClock {
                     time: logical_time.time + 1,
                 })?
-
-                //messsage, update state,  then check if other queued messages,awaiting
-                //delivery, can be delivered based on received accepted_proposals relative to
-                // rfp logical_time
             } else {
                 self.deliverable_queue
                     .insert(logical_time, broadcast_message);
             }
-            //queue message and wait for next sequential accepted proposal
         }
         Ok(WorkerResponse::StateUpdateConfirmed {
             worker_id: self.worker_id,
             logical_time,
         })
+    }
+
+    fn recursively_process_queue_for_sequential_deliverables(
+        &mut self,
+        logical_time: LamportClock,
+    ) -> Result<()> {
+        match self.check_queue_for_deliverable(logical_time) {
+            Ok(true) => {
+                self.recursively_process_queue_for_sequential_deliverables(LamportClock {
+                    time: logical_time.time + 1,
+                })?;
+            }
+            Ok(false) => return Ok(()),
+            Err(e) => {
+                return Err(e);
+            }
+        }
+        Ok(())
     }
     fn check_queue_for_deliverable(&mut self, logical_time: LamportClock) -> Result<bool> {
         let next_deliverable = LamportClock {
@@ -240,23 +242,6 @@ impl Worker {
         } else {
             Ok(false)
         }
-    }
-    fn process_queue_for_sequential_deliverables(
-        &mut self,
-        logical_time: LamportClock,
-    ) -> Result<()> {
-        match self.check_queue_for_deliverable(logical_time) {
-            Ok(true) => {
-                self.process_queue_for_sequential_deliverables(LamportClock {
-                    time: logical_time.time + 1,
-                })?;
-            }
-            Ok(false) => return Ok(()),
-            Err(e) => {
-                return Err(e);
-            }
-        }
-        Ok(())
     }
 
     fn handle_master_message(&mut self, msg: MasterMessage) -> Result<WorkerResponse> {

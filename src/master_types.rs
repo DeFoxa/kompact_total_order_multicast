@@ -223,13 +223,36 @@ pub struct WorkerId(pub u8);
 pub enum WorkerState {
     #[default]
     Start,
-    Active,
+    Active(ActiveWorkerStates),
     PossibleFault,
     Dead,
 }
 impl WorkerState {
     fn active(&mut self) -> Self {
-        WorkerState::Active
+        match self {
+            WorkerState::Active(state) => WorkerState::Active(state.handle_active_state()),
+            _ => todo!(),
+        }
+    }
+    fn possible_fault(&mut self) -> Self {
+        WorkerState::PossibleFault
+    }
+
+    fn dead_worker_shutdown(&mut self) -> Self {
+        WorkerState::Dead
+    }
+}
+#[derive(Debug, Clone, PartialEq, Hash)]
+pub enum ActiveWorkerStates {
+    ProcessingQueuedMessages,
+    EmptyMessageQueue,
+}
+impl ActiveWorkerStates {
+    fn handle_active_state(&mut self) -> Self {
+        match self {
+            ActiveWorkerStates::ProcessingQueuedMessages => todo!(),
+            ActiveWorkerStates::EmptyMessageQueue => todo!(),
+        }
     }
 }
 
