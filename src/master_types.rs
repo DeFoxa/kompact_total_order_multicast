@@ -219,6 +219,12 @@ impl Require<MessagePort> for Master {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct WorkerId(pub u8);
 
+//TODO: Continue developing logic for master acknowledgement of workerstate, ActiveWOrkerState
+//necessary to delineate between a worker with an empty queue and a faulty/dead worker. Add logic
+// in rfp response handling for consideration of worker_state, and add logic for updating master's
+// internal storage of worker state based on worker_response to rfp.
+// i.e. if emtpy_queue on worker -> worker response should call method on WorkerState (inside match
+// from master) that updates to EmptyMessageQueue, master should no longer expect rfp to generate a proposal
 #[derive(Debug, Clone, Default, Hash, PartialEq)]
 pub enum WorkerState {
     #[default]
