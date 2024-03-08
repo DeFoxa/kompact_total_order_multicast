@@ -49,7 +49,7 @@ impl PartialOrd for BroadcastMessage {
 #[derive(Debug, Clone)]
 pub enum WorkerResponse {
     RfpResponse(RfpResponse),
-    // NOTE: StateUpdateConfirmed: include worker_id num and logical_time from associated rfp
+    // NOTE: StateUpdateConfirmed: include worker_id and logical_time from associated rfp
     StateUpdateConfirmed {
         worker_id: u8,
         logical_time: LamportClock,
@@ -101,7 +101,7 @@ impl Worker {
             message_port: ProvidedPort::uninitialised(),
         }
     }
-    /// This method is called at worker start, it generates the mock messages that are then added
+    /// Method is called at worker start, it generates the mock messages that are then added
     /// to the binaryheap for later proposals/broadcasts. seq_number gen is based on
     /// timestamp, worker_id and an index for spacing of the sequence_numbers - called with
     /// generate_sequence_number method.
@@ -127,13 +127,14 @@ impl Worker {
         }
         Ok(())
     }
+    /// TODO: Refactor sequence_number generation relative to notes
     fn generate_sequence_number(&self, timestamp: u128, index: u64) -> i128 {
         (timestamp as i128) * 1000 + (self.worker_id as i128) * 100 + (index as i128)
     }
 
     /// Method Updates state from accepted_proposal from sender (master)
     fn update_state(&mut self, msg_content: u8) {
-        // step 1: add msg_content: u8 to current state element at index 0
+        // step 1: add msg_content mod 100: u8 to current state element at index 0
         let updated_element = (self.state.0 + msg_content) % 100;
         // step 2: rotate state.0 and state.1
         self.state = (self.state.1, updated_element);
@@ -277,8 +278,8 @@ impl Actor for Worker {
 impl ComponentLifecycle for Worker {
     fn on_start(&mut self) -> Handled {
         // on start generate a set of sequence_num/Broadcast messages using random elements and add
-        // to the binaryheap/btreemap, these will be our mock messages. RFP will not instigate the
-        // generatio of new mock messages, the worker will just pull from the binary heap and then
+        // to the binaryheap these will be our mock messages. RFP will not instigate the
+        // generatio of new mock messages, the worker will just pull from the bh and then
         // reorder the heap with accepted sequence numbers, until every worker heap is empty, then
         // the processes complete and shutdown
         self.initialize_message_queue();
