@@ -758,16 +758,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "isis_total_order_multicast"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "kompact",
- "rand",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1427,6 +1417,16 @@ checksum = "7ba3a3ef41e6672a2f0f001392bb5dcd3ff0a9992d618ca761a11c3121547774"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "total_order_multicast"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "kompact",
+ "rand",
 ]
 
 [[package]]

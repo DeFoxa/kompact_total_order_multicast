@@ -1,5 +1,5 @@
 [package]
-name = "isis_total_order_multicast"
+name = "total_order_multicast"
 version = "0.1.0"
 edition = "2021"
 

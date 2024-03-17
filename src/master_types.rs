@@ -10,19 +10,14 @@ use std::{
     {thread, time},
 };
 
-//TODO: write method to process proposals from workers to determined accepted proposal
-// why do i have a process_response and process_proposal method? should only need one unless im
-// going to something specific with the StateUpdateConfirmed response. Also do I still need
-// outstanding_proposal field? Figure out what I'm doing with the receive_local on master, if
-// anything. may do all responses through port
+//TODO: write method to process proposals from workers to determine accepted proposal
+
 // TODO: write handling for state_update_confirmed: TBD how these are managed/confirmed by master
 // TODO: Longer term todo: write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
-// TODO: Consider adding a worker state enum type from master, each active worker, connected to
-// master, will have a designated state (Active, PossibleFault, Dead). state updates relative to
-// receipt of proposals and state_update_Confirmation
 // TODO: Finish errors.rs structure, methods and implemented on master/worker
+// TODO: see WorkerState comment
 
 #[derive(ComponentDefinition)]
 pub struct Master {
