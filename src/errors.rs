@@ -1,4 +1,3 @@
-//TODO: write impl's and methods for display and logging errors
 pub enum MessageError {
     MasterInternalError,
     WorkerInternalError,
