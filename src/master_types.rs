@@ -12,7 +12,7 @@ use std::{
 
 //TODO: write method to process proposals from workers to determine accepted proposal
 
-// TODO: write handling for state_update_confirmed: TBD how these are managed/confirmed by master
+// TODO: write handling for worker state_update_confirmed
 // TODO: Longer term todo: write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
@@ -25,8 +25,8 @@ pub struct Master {
     message_port: RequiredPort<MessagePort>,
     worker_states: HashMap<WorkerId, WorkerState>,
     worker_components: Vec<Arc<Component<Worker>>>,
-    // worker_response: Vec<WorkerResponse>,
-    // NOTE: below currently unused, keeping it in case we switch to Ask method for req/res for rfp
+    // NOTE: oustanding_proposals currently unused, keeping it until worker state management logic
+    // finalized
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
     worker_response: Vec<Option<WorkerResponse>>,
     worker_refs: Vec<ActorRefStrong<MasterMessage>>,
@@ -53,17 +53,12 @@ impl Master {
         }
     }
     fn request_for_proposal(&mut self) {
-        //adding jitter component to simulate network latency for communication between master and
-        //workers, also introduces possiblity of asynchronous rfp/accepted receipt by worker which
-        //should be handled by btree and lamport clock
+        /// Adding jitter component to simulate network latency, will test handling of async
+        /// message arrival
         let mut rng = rand::thread_rng();
         let jitter: u32 = rng.gen_range(25..100);
         let delay_duration = std::time::Duration::from_millis((jitter).into());
         let workers = self.worker_refs.clone();
-
-        // does adding the jitter here make sense? verify if the trigger method goes out to all
-        // members of the port simultaneously, feel like I read that it may not, in which case
-        // jitter here is fine. otherwise have to add mock network latency on the worker side
 
         for _ in workers.iter() {
             self.schedule_once(delay_duration, move |new_self, _context| {
@@ -186,9 +181,7 @@ impl Require<MessagePort> for Master {
                 self.worker_response
                     .push(Some(WorkerResponse::RfpResponse(msg.clone())));
 
-                // NOTE: below doesn't manage bugged worker states, will fix later:
-                // if single worker responds multiple times or doesn't respond,
-                // system won't run proposal comparisons
+                // NOTE: below doesn't manage bugged worker states, will fix later
 
                 if self.worker_response.len() == self.worker_states.len() {
                     info!(self.ctx.log(), "proposals received from all workers");
@@ -207,14 +200,13 @@ impl Require<MessagePort> for Master {
                 "Error: WorkerResponse::NoResponse sent to master"
             ),
         }
-
-        todo!();
+        Handled::Ok
     }
 }
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct WorkerId(pub u8);
 
-//TODO: Continue developing logic for master acknowledgement of workerstate, ActiveWOrkerState
+//TODO: Continue developing logic for master acknowledgement of workerstate, ActiveWorkerState
 //necessary to delineate between a worker with an empty queue and a faulty/dead worker. Add logic
 // in rfp response handling for consideration of worker_state, and add logic for updating master's
 // internal storage of worker state based on worker_response to rfp.

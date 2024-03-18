@@ -247,7 +247,7 @@ impl Worker {
                 broadcast_message,
             } => {
                 Ok(self.handle_accepted_proposal(logical_time, broadcast_message)?)
-                //TODO: send StateUpdateConfirmation, include worker_id and logical_time,  back to master through port handle
+                //TODO: send StateUpdateConfirmation, include worker_id and logical_time,  back to master through port
             }
         }
     }
