@@ -1,3 +1,4 @@
+///NOTE: complete error state development and integrate into master -> worker communication logic
 pub enum MessageError {
     MasterInternalError,
     WorkerInternalError,

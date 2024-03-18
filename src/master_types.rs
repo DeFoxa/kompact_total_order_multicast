@@ -45,7 +45,6 @@ impl Master {
             message_port: RequiredPort::uninitialised(),
             worker_states: worker_map,
             worker_components: Vec::with_capacity(num_workers.into()),
-            // worker_response: Vec::new(),
             outstanding_proposals: None,
             worker_response: Vec::with_capacity(num_workers.into()),
             worker_refs: Vec::with_capacity(num_workers.into()),

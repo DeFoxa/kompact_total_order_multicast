@@ -8,10 +8,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-//TODO: Rewrite generation of binary heap sequence_numbers and messages at initialization
-
-//TODO: add logging and debugging
-
 #[derive(Debug, Clone, Eq)]
 pub struct BroadcastMessage {
     pub worker_id: u8,
@@ -131,8 +127,6 @@ impl Worker {
     }
 
     fn generate_rfp_response(&mut self, rfp_logical_time: LamportClock) -> Result<WorkerResponse> {
-        //TODO: pull Reverse BinaryHeap for lowest timestamp in BH, generate proposal with
-        //logical_time from rfp and associated BroadcastMessage
         if let Some(Reverse(top_of_queue)) = self.undelivered_priority_queue.peek() {
             let proposal = Proposal {
                 logical_time: rfp_logical_time,
@@ -187,9 +181,10 @@ impl Worker {
         if let Some(last_delivered) = self.delivered_messages.iter().max_by_key(|p| p.0) {
             if last_delivered.0.time + 1 == logical_time.time {
                 self.update_state(broadcast_message.content);
+
                 self.delivered_messages
                     .insert(logical_time, broadcast_message);
-                // let new_clock = logical_time.time + 1;
+
                 self.recursively_process_queue_for_sequential_deliverables(LamportClock {
                     time: logical_time.time + 1,
                 })?

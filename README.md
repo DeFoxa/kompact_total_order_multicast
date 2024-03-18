@@ -11,3 +11,5 @@ General Framework:
         - Master logical clock determines message delivery ordering
     - writing logic for local message handling on actors (fn receive_local). However, can be easily implemented for receive_network
     if working in distributed system of master and workers. 
+
+    - TODO: Write simple tui to track current state of workers, indicator for variation of state between workers (bug) and order of delivered messages across spawned workers
