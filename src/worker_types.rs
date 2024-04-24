@@ -87,10 +87,8 @@ impl Worker {
             message_port: ProvidedPort::uninitialised(),
         }
     }
-    /// Method is called at worker start, it generates the mock messages that are then added
-    /// to the binaryheap for later proposals/broadcasts. seq_number gen is based on
-    /// timestamp, worker_id and an index for spacing of the sequence_numbers - called with
-    /// generate_sequence_number method.
+    /// Method is called at worker start, generates the mock messages that are then added
+    /// to the BH for later proposals/broadcasts.
     fn initialize_message_queue(&mut self) -> Result<()> {
         let mut rng = rand::thread_rng();
         let current_time = SystemTime::now()

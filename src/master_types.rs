@@ -10,8 +10,6 @@ use std::{
     {thread, time},
 };
 
-//TODO: write method to process proposals from workers to determine accepted proposal
-
 // TODO: write handling for worker state_update_confirmed
 // TODO: Longer term todo: write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
