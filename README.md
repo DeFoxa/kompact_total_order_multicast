@@ -7,3 +7,8 @@ Total order multicast  with Kompact actor-component hybrid concurrency model
     - Master logical clock determines message delivery ordering
 - writing logic for local message handling from kompact actors (fn receive_local). However, can be easily implemented for receive_network
 
+
+## Resources 
+- distributed systems lecture: including FIFO, total order multicast, ISIS: https://courses.grainger.illinois.edu/ece428/sp2021//assets/slides/lect8-after.pdf
+
+
