@@ -11,6 +11,7 @@ use std::{
 };
 
 // TODO: write handling for worker state_update_confirmed
+// TODO: add async to applicable methods: message req/res between master/workers
 // TODO:  write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
@@ -90,6 +91,7 @@ impl Master {
                 .cmp(&b.1.sequence_number)
                 .then_with(|| a.1.worker_id.cmp(&b.1.worker_id))
         });
+
         match accepted {
             Some((lamport_clock, broadcast_message)) => {
                 Ok(MasterMessage::AcceptedProposalBroadcast {
@@ -191,7 +193,15 @@ impl Require<MessagePort> for Master {
                 worker_id,
                 logical_time,
             } => {
-                todo!(); //internally acknowledge response
+                if let Some(worker_state) = self.worker_states.get_mut(&WorkerId(worker_id)) {
+                    *worker_state =
+                        WorkerState::Active(ActiveWorkerStates::ProcessingQueuedMessages);
+                }
+
+                info!(
+                    self.ctx.log(),
+                    "state update confirmed for worker {}", worker_id
+                );
             }
             _ => debug!(
                 self.ctx.log(),
