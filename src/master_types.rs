@@ -111,6 +111,23 @@ impl Master {
             worker.tell(message.clone());
         }
     }
+
+    fn track_worker_status(&mut self, worker_id: WorkerId, state: WorkerState) {
+        self.worker_states.insert(worker_id, state);
+    }
+
+    fn verify_active_workers(&self) -> Vec<WorkerId> {
+        self.worker_states
+            .iter()
+            .filter_map(|(worker_id, state)| {
+                if let WorkerState::Active(_) = state {
+                    Some(worker_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 impl ComponentLifecycle for Master {
