@@ -128,6 +128,32 @@ impl Master {
             })
             .collect()
     }
+
+    fn check_possible_fault_workers(&self) -> Vec<WorkerId> {
+        self.worker_states
+            .iter()
+            .filter_map(|(worker_id, state)| {
+                if let WorkerState::PossibleFault = state {
+                    Some(worker_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn check_dead_workers(&self) -> Vec<WorkerId> {
+        self.worker_states
+            .iter()
+            .filter_map(|(worker_id, state)| {
+                if let WorkerState::Dead = state {
+                    Some(worker_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 impl ComponentLifecycle for Master {
