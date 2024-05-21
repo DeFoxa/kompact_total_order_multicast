@@ -11,7 +11,7 @@ use std::{
 };
 
 // TODO: write handling for worker state_update_confirmed
-// TODO: Longer term todo: write worker and master handling for tracking active workers on master
+// TODO:  write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
 // TODO: Finish errors.rs structure, methods and implemented on master/worker
@@ -110,6 +110,7 @@ impl Master {
         }
     }
 }
+
 impl ComponentLifecycle for Master {
     fn on_start(&mut self) -> Handled {
         for i in 0..self.worker_states.len() {
@@ -217,6 +218,7 @@ pub enum WorkerState {
     PossibleFault,
     Dead,
 }
+
 impl WorkerState {
     fn active(&mut self) -> Self {
         match self {
@@ -232,11 +234,13 @@ impl WorkerState {
         WorkerState::Dead
     }
 }
+
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub enum ActiveWorkerStates {
     ProcessingQueuedMessages,
     EmptyMessageQueue,
 }
+
 impl ActiveWorkerStates {
     fn handle_active_state(&mut self) -> Self {
         match self {

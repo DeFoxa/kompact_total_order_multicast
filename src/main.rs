@@ -1,5 +1,7 @@
 #![allow(warnings)]
 use kompact::prelude::*;
+use master_types::Master;
+use worker_types::Worker;
 
 pub mod errors;
 pub mod master_types;
