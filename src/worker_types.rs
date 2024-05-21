@@ -231,7 +231,10 @@ impl Worker {
     fn handle_master_message(&mut self, msg: MasterMessage) -> Result<WorkerResponse> {
         match msg {
             MasterMessage::Rfp { master_clock } => {
-                Ok(self.generate_rfp_response(master_clock)?)
+                let res = self.generate_rfp_response(master_clock)?;
+                self.message_port.trigger(res.clone());
+                Ok(res)
+                // Ok(self.generate_rfp_response(master_clock)?)
                 //TODO: send res back to master through port handle
             }
 
@@ -239,8 +242,12 @@ impl Worker {
                 logical_time,
                 broadcast_message,
             } => {
-                Ok(self.handle_accepted_proposal(logical_time, broadcast_message)?)
-                //TODO: send StateUpdateConfirmation, include worker_id and logical_time,  back to master through port
+                let res = self.handle_accepted_proposal(logical_time, broadcast_message)?;
+                self.message_port.trigger(res.clone());
+                Ok(res)
+                // Ok(self.handle_accepted_proposal(logical_time, broadcast_message)?)
+                //
+                //TODO: send StateUpdateConfirmation back to master through port, include worker_id and logical_time
             }
         }
     }
@@ -278,9 +285,10 @@ impl ComponentLifecycle for Worker {
 
 impl Provide<MessagePort> for Worker {
     fn handle(&mut self, event: MasterMessage) -> Handled {
-        let res = self.handle_master_message(event).unwrap();
-        self.message_port.trigger(res);
-
+        if let Ok(res) = self.handle_master_message(event) {
+            self.message_port.trigger(res);
+        }
+        // self.message_port.trigger(res);
         Handled::Ok
     }
 }
