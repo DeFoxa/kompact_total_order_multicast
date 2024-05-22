@@ -116,7 +116,7 @@ impl Master {
         self.worker_states.insert(worker_id, state);
     }
 
-    fn verify_active_workers(&self) -> Vec<WorkerId> {
+    fn check_active_workers(&self) -> Vec<WorkerId> {
         self.worker_states
             .iter()
             .filter_map(|(worker_id, state)| {
@@ -153,6 +153,24 @@ impl Master {
                 }
             })
             .collect()
+    }
+
+    fn check_non_active_workers(&self) -> Vec<(WorkerId, WorkerState)> {
+        self.worker_states
+            .iter()
+            .filter_map(|(worker_id, state)| match state {
+                WorkerState::PossibleFault | WorkerState::Dead => {
+                    Some((worker_id.clone(), state.clone()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+    fn update_failed_worker_state(&mut self, worker_id: WorkerId) {
+        todo!();
+    }
+    fn handle_worker_failure(&mut self, worker_id: WorkerId) {
+        self.update_failed_worker_state(worker_id);
     }
 }
 
