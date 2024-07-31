@@ -73,7 +73,6 @@ pub struct Worker {
     delivered_messages: BTreeMap<LamportClock, BroadcastMessage>,
     message_port: ProvidedPort<MessagePort>,
 }
-// ignore_lifecycle!(Worker);
 
 impl Worker {
     pub fn new(id: u8) -> Self {
@@ -89,7 +88,7 @@ impl Worker {
     }
     /// Method is called at worker start, generates the mock messages that are then added
     /// to the BH for later proposals/broadcasts.
-    fn initialize_message_queue(&mut self) -> Result<()> {
+    pub fn initialize_message_queue(&mut self) -> Result<()> {
         let mut rng = rand::thread_rng();
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -150,11 +149,11 @@ impl Worker {
         logical_time: LamportClock,
         broadcast_message: BroadcastMessage,
     ) -> Result<WorkerResponse> {
-        /// Checks if current worker generated the accepted proposal, if true pop BroadcastMessage
-        /// message off of undelivered_priority_queue, mark as deliverable -> add to deliverable
-        /// queue -> run logic to verify proper ordering of message delivery -> deliver. Else
-        /// directly queue message in deliverable_queue -> run logic for proper ordering -> update
-        /// state and deliver
+        // Checks if current worker generated the accepted proposal, if true pop BroadcastMessage
+        // message off of undelivered_priority_queue, mark as deliverable -> add to deliverable
+        // queue -> run logic to verify proper ordering of message delivery -> deliver. Else
+        // directly queue message in deliverable_queue -> run logic for proper ordering -> update
+        // state and deliver
         match self.undelivered_priority_queue.peek() {
             Some(top_of_queue)
                 if top_of_queue.0.sequence_number == broadcast_message.sequence_number
@@ -232,10 +231,9 @@ impl Worker {
         match msg {
             MasterMessage::Rfp { master_clock } => {
                 let res = self.generate_rfp_response(master_clock)?;
+                println!("worker response {:?}", res);
                 self.message_port.trigger(res.clone());
                 Ok(res)
-                // Ok(self.generate_rfp_response(master_clock)?)
-                //TODO: send res back to master through port handle
             }
 
             MasterMessage::AcceptedProposalBroadcast {
@@ -288,7 +286,7 @@ impl Provide<MessagePort> for Worker {
         if let Ok(res) = self.handle_master_message(event) {
             self.message_port.trigger(res);
         }
-        // self.message_port.trigger(res);
+
         Handled::Ok
     }
 }
