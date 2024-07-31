@@ -12,10 +12,9 @@ use std::{
 
 // TODO: write handling for worker state_update_confirmed
 // TODO: add async to applicable methods: message req/res between master/workers
-// TODO:  write worker and master handling for tracking active workers on master
+// TODO: write worker and master handling for tracking active workers on master
 // side, so master has a way to verify active and inactive workers and handle state update
 // confirmation and outstanding rfp
-// TODO: Finish errors.rs structure, methods and implemented on master/worker
 // TODO: see WorkerState comment
 
 #[derive(ComponentDefinition)]
@@ -23,7 +22,7 @@ pub struct Master {
     ctx: ComponentContext<Self>,
     message_port: RequiredPort<MessagePort>,
     worker_states: HashMap<WorkerId, WorkerState>,
-    worker_components: Vec<Arc<Component<Worker>>>,
+    pub worker_components: Vec<Arc<Component<Worker>>>,
     // NOTE: oustanding_proposals currently unused, keeping it until worker state management logic
     // finalized
     outstanding_proposals: Option<Ask<MasterMessage, WorkerResponse>>,
@@ -33,7 +32,7 @@ pub struct Master {
 }
 
 impl Master {
-    fn new(num_workers: u8) -> Self {
+    pub fn new(num_workers: u8) -> Self {
         let mut worker_map: HashMap<WorkerId, WorkerState> = HashMap::new();
         for i in 0..num_workers {
             worker_map.insert(WorkerId(i), WorkerState::default());
@@ -50,7 +49,7 @@ impl Master {
             logical_clock: LamportClock::new(),
         }
     }
-    fn request_for_proposal(&mut self) {
+    pub fn request_for_proposal(&mut self) {
         /// Adding jitter component to simulate network latency, will test handling of async
         /// message arrival
         let mut rng = rand::thread_rng();
